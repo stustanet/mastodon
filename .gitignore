@@ -2,6 +2,7 @@
 
 # config files
 config.py
+config_test.py
 
 # migrations
 db_repository
