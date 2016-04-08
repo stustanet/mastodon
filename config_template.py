@@ -17,3 +17,6 @@ SQLALCHEMY_DATABASE_URI = 'postgresql://{}:{}@{}/{}'.format(DB_USER, DB_PASSWORD
 SQLALCHEMY_MIGRATE_REPO = os.path.join(basedir, 'db_repository')
 
 SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+URL_TO_MOUNT = ''
+PATH_TO_MOUNT = ''

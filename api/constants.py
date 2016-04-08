@@ -1,0 +1,11 @@
+CATEGORY_MUSIC = "music"
+CATEGORY_IMAGE = "image"
+
+CATEGORY_MOVIE = "movie"
+CATEGORY_MUSICVIDEO = "musicvideo"
+CATEGORY_NERDPORN = "nerdporn"
+CATEGORY_PORN = "porn"
+CATEGORY_SERIES = "series"
+CATEGORY_STUSTA = "stusta"
+
+CATEGORY_UNSORTED = "unsorted"
