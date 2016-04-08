@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_restful import reqparse, abort, Api, Resource
+from api import app
 
-app = Flask(__name__)
 api = Api(app)
 
 Categories = {
@@ -62,10 +62,3 @@ search_parser.add_argument('q',
                            required=True,
                            help="Query String cannot be blank!")
 search_parser.add_argument('tags', action='append')
-
-
-def run():
-    app.run(host='0.0.0.0', port=8080, debug=True)
-
-if __name__ == '__main__':
-    app.run(debug=True)
