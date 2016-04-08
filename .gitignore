@@ -3,6 +3,9 @@
 # config files
 config.py
 
+# migrations
+db_repository
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
