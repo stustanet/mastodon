@@ -1,3 +1,4 @@
+#!venv/bin/python
 import unittest
 from flask.ext.testing import TestCase
 import config_test
