@@ -1,4 +1,3 @@
-from flask import Flask
 from flask_restful import reqparse, abort, Api, Resource
 from api import app
 
@@ -9,17 +8,17 @@ Categories = {
     'music': {'title': 'Music'}
 }
 
-Videos = {
-    'video1': {'title': 'Test1',
+Medias = {
+    'media1': {'title': 'Test1',
                'info': 'blablabal'},
-    'video2': {'title': 'Test2',
+    'media2': {'title': 'Test2',
                'info': 'basdad'}
 }
 
 
-def abort_if_video_doesnt_exist(video_id):
-    if video_id not in Videos:
-        abort(404, message="Video {} doesn't exist".format(video_id))
+def abort_if_media_doesnt_exist(media_id):
+    if media_id not in Medias:
+        abort(404, message="Media {} doesn't exist".format(media_id))
 
 
 def abort_if_category_doesnt_exist(category_id):
@@ -38,20 +37,26 @@ class CategoryList(Resource):
         return Categories
 
 
-class Video(Resource):
-    def get(self, video_id):
-        abort_if_video_doesnt_exist(video_id)
-        return Videos[video_id]
+class Media(Resource):
+    def get(self, media_id):
+        abort_if_media_doesnt_exist(media_id)
+        return Medias[media_id]
+
+
+class MediaList(Resource):
+    def get(self):
+        return Medias
 
 
 class Search(Resource):
     def get(self):
         args = search_parser.parse_args()
-        video_id = args['q']
-        abort_if_video_doesnt_exist(video_id)
-        return Videos[video_id]
+        media_id = args['q']
+        abort_if_media_doesnt_exist(media_id)
+        return Medias[media_id]
 
-api.add_resource(Video, '/api/v1/video/<video_id>')
+api.add_resource(Media, '/api/v1/media/<media_id>')
+api.add_resource(MediaList, '/api/v1/media')
 api.add_resource(CategoryList, '/api/v1/category')
 api.add_resource(Category, '/api/v1/category/<category_id>')
 api.add_resource(Search, '/api/v1/search')
