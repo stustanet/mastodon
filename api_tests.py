@@ -147,9 +147,11 @@ class ModelTestCase(TestCase):
         assert search_media(query="Breaking Bad", tags=[tag2.tag_id, tag3.tag_id], category=category1.category_id) == []
 
         # Check that searching by size works
-        #assert search_media(query="Breaking Bad", height=300, width=300) == [medias[1]]
+        assert search_media(query="Breaking Bad", height=300, width=300) == [medias[1]]
 
         # Check that searching by codec works
+        assert search_media(query="Breaking Bad", vcodec="h.264") == [medias[3]]
+
 
 
 

@@ -2,6 +2,7 @@ from api import db
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql.expression import bindparam
 import urllib
 from config import URL_TO_MOUNT
 import binascii
@@ -18,25 +19,25 @@ tag_media_association_table = db.Table('tag_media', db.metadata,
 # These queries search in the mediainfo JSON which looks like this
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
 # jsonb_array_elemnts is used to convert the array to a set which can be queried using a SELECT
-filter_codec_equals = text("""\
+filter_codec_equals = """\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
-        WHERE  stream @> '{"codec_name":":codec_name"}'
-    )
-""")
+        WHERE  stream ->> 'codec_name' = :codec_name
+    ) > 0
+"""
 
 filter_width_greater_equals = """\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
         WHERE  (stream ->> 'width') >= ':width'
-    )
+    ) > 0
  """
 
 filter_height_greater_equals = """\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
         WHERE  (stream ->> 'height') >= ':height'
-    )
+    ) > 0
 """
 
 class Category(db.Model):
@@ -69,7 +70,7 @@ class Media(db.Model):
 
     media_id = db.Column(db.Integer, primary_key=True)
     path = db.Column(db.Text, nullable=False, unique=True)
-    mediainfo = db.Column(postgresql.JSON, nullable=False)
+    mediainfo = db.Column(postgresql.JSONB, nullable=False)
     lastModified = db.Column(db.Integer,
                              # Last modified from filesystem (unix epoch)
                              nullable=False)
@@ -144,6 +145,7 @@ def get_or_create_tag(name):
         db.session.commit()
     return r
 
+
 def search_media(query, vcodec=None, acodec=None, width=None, height=None, category=None,
                  tags=None, order_by=Media.path.asc()):
     media = Media.query
@@ -151,17 +153,17 @@ def search_media(query, vcodec=None, acodec=None, width=None, height=None, categ
     for word in query.split():
         media = media.filter(Media.path.ilike("%{}%".format(word)))
 
-    #if vcodec:
-        #media = media.filter(filter_codec_equals.columns(codec_name=vocdec))
+    if vcodec:
+        media = media.filter(text(filter_codec_equals, bindparams=[bindparam("codec_name", vcodec)]))
 
-    #if acodec:
-        #media = media.filter(filter_codec_equals.columns(codec_name=acodec))
+    if acodec:
+        media = media.filter(text(filter_codec_equals, bindparams=[bindparam("codec_name", acodec)]))
 
-    #if width:
-        #media = media.filter(text(filter_width_greater_equals) > 0)
+    if width:
+        media = media.filter(text(filter_width_greater_equals, bindparams=[bindparam("width", width)]))
 
-    #if height:
-        #media = media.filter(text(filter_height_greater_equals) > 0)
+    if height:
+        media = media.filter(text(filter_height_greater_equals, bindparams=[bindparam("height", height)]))
 
     if category:
         media = media.filter(Media.category == Category.query.filter_by(category_id=category).first())
