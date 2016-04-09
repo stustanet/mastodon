@@ -7,6 +7,7 @@ import urllib
 from config import URL_TO_MOUNT
 import binascii
 import videoinfo
+import logging
 
 tag_media_association_table = db.Table('tag_media',
                                        db.metadata,
@@ -98,7 +99,8 @@ class Media(db.Model):
         mediainfo_for_api = {
             "media_id": self.media_id,
             "path": self.path,
-            "url": urllib.parse.urljoin(URL_TO_MOUNT, urllib.parse.quote(self.path)),
+            "url": urllib.parse.urljoin(URL_TO_MOUNT,
+                                        urllib.parse.quote(self.path)),
             "duration": None,
             "streams": [],
             "category_id": self.category_id,
@@ -150,7 +152,7 @@ def get_or_create_tag(name):
     return r
 
 
-def search_media(query=None, vcodec=None, acodec=None,
+def search_media(query=None, codecs=[],
                  width=None, height=None, category=None,
                  tags=None, order_by=Media.path.asc()):
     media = Media.query
@@ -160,15 +162,12 @@ def search_media(query=None, vcodec=None, acodec=None,
             print("query:", word)
             media = media.filter(Media.path.ilike("%{}%".format(word)))
 
-    if vcodec:
+    print(codecs)
+    for codec in codecs:
+        print(codec)
         media = media.filter(text(filter_codec_equals,
                                   bindparams=[bindparam("codec_name",
-                                                        vcodec)]))
-
-    if acodec:
-        media = media.filter(text(filter_codec_equals,
-                                  bindparams=[bindparam("codec_name",
-                                                        acodec)]))
+                                                        codec)]))
 
     if width:
         media = media.filter(text(filter_width_greater_equals,
