@@ -7,7 +7,7 @@ from api.models import Media, get_or_create_category
 from api import db
 import thumbs
 import binascii
-from config import PATH_TO_MOUNT, URL_TO_MOUNT, INDEX_FOLDER, VIDEO_CATEGORY_RULES
+from config import PATH_TO_MOUNT, URL_TO_MOUNT, INDEX_FOLDER, VIDEO_CATEGORY_RULES, POOL_PROCESSES
 import hashlib
 import mimetypes
 import time
@@ -15,6 +15,7 @@ import re
 import videoinfo
 import logging
 import traceback
+from multiprocessing import Process, Manager, Pool
 
 
 def get_files():
@@ -144,59 +145,108 @@ def categorize(path, mime, duration):
 
     return category
 
-def main():
+def async_index_medium(queue, relativePath, mime, lastModified):
+    """\
+    Takes three arguments path, mime, lsatModified(directly from get_deltas)
+    And does all operations to index the medium:
+
+    - calculate sha
+    - insert into db
+    - create thumbnail
+
+    This function can be used in multiprocessing Pools because it doesn't depend on any
+    global variables.
+    It will create its own DB Connection
+    """
     logging.basicConfig(level=logging.DEBUG)
+    logging.info("Indexing {}".format(relativePath))
 
-    logging.info("Scraper started.")
-    logging.info("Getting files in DB.")
-    database_files = get_files_in_db()
-    logging.info("Files in DB: {}".format(len(database_files)))
+    # get a custom instance of db
+    from api import db
 
-    filesystem_files = get_files()
-    logging.info("Getting files in FS: {}".format(len(filesystem_files)))
+    path = os.path.join(PATH_TO_MOUNT, relativePath)
 
-    (to_upsert, to_delete) = get_deltas(database_files, filesystem_files)
+    mediainfo = videoinfo.ffprobe(path)
+    duration = 0
+    if "format" in mediainfo:
+        duration = float(mediainfo["format"]["duration"])
 
-    logging.info("{} to update/insert, {} to delete".format(len(to_upsert), len(to_delete)))
+    m = Media(
+        path=relativePath,
+        category=get_or_create_category(categorize(relativePath, mime, duration)),
+        mediainfo=mediainfo,
+        lastModified=lastModified,
+        mimetype=mime,
+        timeLastIndexed=int(time.time()),
+        sha=hashfile(open(path, "rb"), hashlib.sha256()))
 
-    for (relativePath, _, _) in to_delete:
-        Media.query.filter_by(path=relativePath).delete()
+    try:
+        db.session.add(m)
+        db.session.commit()
+    except:
+        logging.error("Error adding new media to DB: {}".format(sys.exc_info()[0]))
 
-    i = 1
-    num_to_upsert = len(to_upsert)
-    for (relativePath, mime, lastModified) in to_upsert:
-        path = os.path.join(PATH_TO_MOUNT, relativePath)
-
-        mediainfo = videoinfo.ffprobe(path)
-        duration = 0
-        if "format" in mediainfo:
-            duration = float(mediainfo["format"]["duration"])
-
-        m = Media(
-            path=relativePath,
-            category=get_or_create_category(categorize(relativePath, mime, duration)),
-            mediainfo=mediainfo,
-            lastModified=lastModified,
-            mimetype=mime,
-            timeLastIndexed=int(time.time()),
-            sha=hashfile(open(path, "rb"), hashlib.sha256()))
-
-        try:
-            db.session.add(m)
+    if mime.startswith("video"):
+        try :
+             thumbs.getThumb(binascii.hexlify(m.sha).decode(), os.path.join(PATH_TO_MOUNT, m.path))
         except:
-            logging.error("Error adding new media to DB: {}".format(sys.exc_info()[0]))
+            logging.warning("Error generating thumb: {}".format(sys.exc_info()))
 
-        if mime.startswith("video"):
-            try :
-                 thumbs.getThumb(binascii.hexlify(m.sha).decode(), os.path.join(PATH_TO_MOUNT, m.path))
-            except:
-                logging.warning("Error generating thumb: {}".format(sys.exc_info()))
+    logging.info("Finished indexing {}".format(relativePath))
+    queue.put(True)
 
-        logging.info("Inserted {}/{}".format(i, num_to_upsert))
-        i += 1
+def progress_process(queue, total):
+    logging.basicConfig(level=logging.DEBUG)
+    i = 0
+    while True:
+        if queue.get():
+            i = i + 1
+            logging.info("Indexed {}/{}".format(i, total))
+        else:
+            return
 
-    db.session.commit()
 
+def main():
+    m = Manager()
+    q = m.Queue()
+
+    with Pool(processes=POOL_PROCESSES) as pool:
+        logging.basicConfig(level=logging.DEBUG)
+
+        logging.info("Scraper started.")
+        logging.info("Getting files in DB.")
+        database_files = get_files_in_db()
+        logging.info("Files in DB: {}".format(len(database_files)))
+
+        filesystem_files = get_files()
+        logging.info("Getting files in FS: {}".format(len(filesystem_files)))
+
+        (to_upsert, to_delete) = get_deltas(database_files, filesystem_files)
+
+        logging.info("{} to update/insert, {} to delete".format(len(to_upsert), len(to_delete)))
+
+        logging.info("Started pool with {} processes".format(POOL_PROCESSES))
+
+        for (relativePath, _, _) in to_delete:
+            Media.query.filter_by(path=relativePath).delete()
+
+        db.session.commit()
+
+        num_to_upsert = len(to_upsert)
+
+        # start a process to show index progress
+        p = Process(target=progress_process, args=(q, num_to_upsert, ))
+        p.start()
+
+        for (relativePath, mime, lastModified) in to_upsert:
+            pool.apply_async(async_index_medium, [q, relativePath, mime, lastModified])
+
+
+        pool.close()
+        pool.join()
+        q.put(None)
+        logging.info("Waiting for progress process to finish...")
+        p.join()
 
 if __name__ == "__main__":
     main()

@@ -16,7 +16,7 @@ tag_media_association_table = db.Table('tag_media',
                                               db.ForeignKey('tag.tag_id')),
                                        Column('media_id',
                                               db.Integer,
-                                              db.ForeignKey('media.media_id')))
+                                              db.ForeignKey('media.media_id', ondelete="cascade")))
 
 # These queries search in the mediainfo JSON which looks like this
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
@@ -108,7 +108,8 @@ class Media(db.Model):
 
     tags = relationship("Tag",
                         secondary=tag_media_association_table,
-                        back_populates="media")
+                        back_populates="media",
+                        cascade="all")
 
     def api_fields(self):
         hex_sha = binascii.hexlify(self.sha).decode("ascii")
