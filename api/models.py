@@ -172,7 +172,7 @@ def get_or_create_tag(name):
 
 def search_media(query=None, codecs=[],
                  width=None, height=None, category=None,
-                 tags=None, order_by=Media.path.asc(), sha=None):
+                 tags=None, order_by=Media.path.asc(), sha=None, offset=0, limit=20):
     media = Media.query
 
     if query:
@@ -205,4 +205,4 @@ def search_media(query=None, codecs=[],
 
     media = media.order_by(order_by)
 
-    return media.all()
+    return media.limit(limit).offset(offset).all()

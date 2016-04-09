@@ -19,6 +19,14 @@ search_parser.add_argument("category", required=False, type=int)
 search_parser.add_argument("tag", required=False, action="append", default=[])
 search_parser.add_argument("order_by", required=False, default="name_asc")
 search_parser.add_argument("sha")
+search_parser.add_argument("offset", default=0, type=int)
+search_parser.add_argument("limit", default=20, type=int)
+
+category_parser = reqparse.RequestParser()
+category_parser.add_argument("order_by", default="name_asc")
+category_parser.add_argument("limit", default=20, type=int)
+category_parser.add_argument("offset", default=0, type=int)
+
 
 
 @v1.route('/', methods=["GET"])
@@ -62,9 +70,13 @@ def search():
 
         sha = binascii.unhexlify(args["sha"])
 
+    limit = args["limit"]
+    if limit > 100:
+        limit = 100
+
     media = search_media(query=args["q"], codecs=args["codecs"],
         width=args["width"], height=args["height"], category=args["category"],
-        tags=tags, order_by=order_by, sha=sha)
+        tags=tags, order_by=order_by, sha=sha, limit=limit, offset=args["offset"])
 
     return jsonify(media=[medium.api_fields() for medium in media])
 
@@ -97,14 +109,32 @@ def mediaTag(media_id, tag_name):
 @v1.route('/category', methods=["GET"])
 def category():
     categories = Category.query.all()
+
     json = jsonify(categories=[category.api_fields()
                                for category in categories])
+
     return json
 
 
 @v1.route('/category/<int:category_id>', methods=["GET"])
 def categoryById(category_id):
-    media = Media.query.filter_by(category_id=category_id).all()
+    args = category_parser.parse_args()
+
+    order_by = None
+    if args["order_by"] == "name_asc":
+        order_by = Media.path.asc()
+    elif args["order_by"] == "name_desc":
+        order_by = Media.path.desc()
+    elif args["order_by"] == "indexed_asc":
+        order_by = Media.timeLastIndexed.asc()
+    elif args["order_by"] == "indexed_desc":
+        order_by = Media.timeLastIndexed.desc()
+
+    limit = args["limit"]
+    if limit > 100:
+        limit = 100
+
+    media = Media.query.filter_by(category_id=category_id).order_by(order_by).offset(args["offset"]).limit(limit).all()
     json = jsonify(media=[medium.api_fields() for medium in media])
     return json
 
