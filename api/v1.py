@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, render_template, Response
+from flask import Blueprint, jsonify, render_template, Response, request
 from flask_restful import reqparse
 from .models import Media, Category, search_media, Tag, get_or_create_tag
 from api import app
@@ -18,17 +18,14 @@ search_parser.add_argument("category", required=False, type=int)
 search_parser.add_argument("tag", required=False, action="append", default=[])
 search_parser.add_argument("order_by", required=False, default="name_asc")
 
-tag_parser = reqparse.RequestParser()
-tag_parser.add_argument("set", required=True)
 
-
-@v1.route('/')
+@v1.route('/', methods=["GET"])
 def doc():
     with open(os.path.join(basedir, "api/static/docs.txt"), "r") as f:
         return Response(f.read(), content_type='text')
 
 
-@v1.route('/search')
+@v1.route('/search', methods=["GET"])
 def search():
     args = search_parser.parse_args()
 
@@ -62,26 +59,24 @@ def search():
     return jsonify(media=[medium.api_fields() for medium in media])
 
 
-@v1.route('/media/<int:media_id>')
+@v1.route('/media/<int:media_id>', methods=["GET"])
 def mediaById(media_id):
     medium = Media.query.filter_by(media_id=media_id).first_or_404()
     json = jsonify(**medium.api_fields())
     return json
 
-@v1.route("/media/<int:media_id>/tag/<tag_name>")
-def mediaTag(media_id, tag_name):
-    args = tag_parser.parse_args()
 
+
+@v1.route("/media/<int:media_id>/tag/<tag_name>", methods=["POST", "DELETE"])
+def mediaTag(media_id, tag_name):
     medium = Media.query.filter_by(media_id=media_id).first_or_404()
     tag = get_or_create_tag(tag_name)
 
-    if args["set"] in ["True", "true", "1"]:
+    if request.method == "POST":
         medium.tags.append(tag)
-    elif args["set"] in ["False", "false", "0"]:
+    elif request.method == "DELETE":
         if tag in medium.tags:
             medium.tags.remove(tag)
-    else:
-        return "Bad Request", 400
 
     db.session.add(medium)
     db.session.commit()
@@ -89,8 +84,7 @@ def mediaTag(media_id, tag_name):
     return jsonify(**medium.api_fields())
 
 
-
-@v1.route('/category')
+@v1.route('/category', methods=["GET"])
 def category():
     categories = Category.query.all()
     json = jsonify(categories=[category.api_fields()
@@ -98,13 +92,13 @@ def category():
     return json
 
 
-@v1.route('/category/<int:category_id>')
+@v1.route('/category/<int:category_id>', methods=["GET"])
 def categoryById(category_id):
     media = Media.query.filter_by(category_id=category_id).all()
     json = jsonify(media=[medium.api_fields() for medium in media])
     return json
 
 
-@v1.route("/tag")
+@v1.route("/tag", methods=["GET"])
 def tags():
-    return jsonify(tags=[tag for tag in Tag.query.all()])
+    return jsonify(tags=[tag.name for tag in Tag.query.all()])
