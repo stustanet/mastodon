@@ -186,10 +186,11 @@ def main():
         except:
             logging.error("Error adding new media to DB: {}".format(sys.exc_info()[0]))
 
-        try:
-            thumbs.getThumb(binascii.hexlify(m.sha).decode(), os.path.join(PATH_TO_MOUNT, m.path))
-        except:
-            logging.warning("Error generating thumb: {}".format(sys.exc_info()))
+        if mime.startswith("video"):
+            try :
+                 thumbs.getThumb(binascii.hexlify(m.sha).decode(), os.path.join(PATH_TO_MOUNT, m.path))
+            except:
+                logging.warning("Error generating thumb: {}".format(sys.exc_info()))
 
         logging.info("Inserted {}/{}".format(i, num_to_upsert))
         i += 1
