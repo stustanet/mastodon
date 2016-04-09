@@ -1,23 +1,24 @@
 from api import db
 from sqlalchemy.dialects import postgresql
-from sqlalchemy import ForeignKey, Column
+from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship
 import urllib
-from config import THUMBNAIL_ROOT_URL, URL_TO_MOUNT
+from config import URL_TO_MOUNT
 import binascii
-import videoinfo
 
-tag_media_association_table = db.Table('tag_media', db.metadata,
-   Column('tag_id',
-         db.Integer,
-         db.ForeignKey('tag.tag_id')),
-        Column('media_id',
-        	db.Integer,
-        	db.ForeignKey('media.media_id')))
+tag_media_association_table = db.Table('tag_media',
+                                       db.metadata,
+                                       Column('tag_id',
+                                              db.Integer,
+                                              db.ForeignKey('tag.tag_id')),
+                                       Column('media_id',
+                                              db.Integer,
+                                              db.ForeignKey('media.media_id')))
 
 # These queries search in the mediainfo JSON which looks like this
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
-# jsonb_array_elemnts is used to convert the array to a set which can be queried using a SELECT
+# jsonb_array_elemnts is used to convert the array to a set which
+# can be queried using a SELECT
 search_codec_query = text("""\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
@@ -25,7 +26,7 @@ search_codec_query = text("""\
     ) > 0
 """)
 
- search_width_query = text("""\
+search_width_query = text("""\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
         WHERE  stream @> '{"width":":width"}'
@@ -38,6 +39,7 @@ search_height_query = text("""\
         WHERE  stream @> '{"height":":height"}'
     ) > 0
 """)
+
 
 class Category(db.Model):
     __tablename__ = "category"
@@ -106,25 +108,27 @@ class Media(db.Model):
         }
 
         if "format" in self.mediainfo:
-          mediainfo_for_api["duration"] = float(self.mediainfo["format"]["duration"])
+            mediainfo_for_api["duration"] = \
+              float(self.mediainfo["format"]["duration"])
 
         for stream in self.mediainfo["streams"]:
-          # TODO: add audio stream language
-          s = {
-            "index": stream.get("index"),
-            "codec": stream.get("codec_name"),
-            "width": stream.get("width"),
-            "height": stream.get("height"),
-            "duration": stream.get("duration"),
-            "type": stream.get("codec_type")
-          }
+            # TODO: add audio stream language
+            s = {
+                "index": stream.get("index"),
+                "codec": stream.get("codec_name"),
+                "width": stream.get("width"),
+                "height": stream.get("height"),
+                "duration": stream.get("duration"),
+                "type": stream.get("codec_type")
+            }
 
-          if not s["duration"]:
-            s["duration"] = mediainfo_for_api["duration"]
+            if not s["duration"]:
+                s["duration"] = mediainfo_for_api["duration"]
 
-          mediainfo_for_api["streams"].append(s)
+            mediainfo_for_api["streams"].append(s)
 
-        return mediainfo_for_api
+            return mediainfo_for_api
+
 
 def get_or_create_category(name):
     r = Category.query.filter_by(name=name).first()
