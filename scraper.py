@@ -5,6 +5,8 @@ import sys
 import os
 from api.models import Media, get_or_create_category
 from api import db
+import thumbs
+import binascii
 from config import PATH_TO_MOUNT, URL_TO_MOUNT, INDEX_FOLDER, VIDEO_CATEGORY_RULES
 import hashlib
 import mimetypes
@@ -12,6 +14,7 @@ import time
 import re
 import videoinfo
 import logging
+import traceback
 
 
 def get_files():
@@ -169,7 +172,6 @@ def main():
         if "format" in mediainfo:
             duration = float(mediainfo["format"]["duration"])
 
-
         m = Media(
             path=relativePath,
             category=get_or_create_category(categorize(relativePath, mime, duration)),
@@ -183,6 +185,11 @@ def main():
             db.session.add(m)
         except:
             logging.error("Error adding new media to DB: {}".format(sys.exc_info()[0]))
+
+        try:
+            thumbs.getThumb(str(binascii.hexlify(m.sha)), os.path.join(PATH_TO_MOUNT, m.path))
+        except:
+            logging.warning("Error generating thumb: {}".format(sys.exc_info()))
 
         logging.info("Inserted {}/{}".format(i, num_to_upsert))
         i += 1
