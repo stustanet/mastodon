@@ -1,6 +1,7 @@
 from subprocess import check_output
 import json
 import sys
+import logging
 
 
 def ffprobe(filename):
@@ -13,19 +14,8 @@ def ffprobe(filename):
         return json.loads(result.decode('utf-8').strip())
 
     except:
-        print("ffprobe error: ", sys.exc_info()[0], file=sys.stderr)
+        logging.warning("ffprobe error: {}".format(sys.exc_info()[0]))
         return dict()
-
-def get_video_stream_info(ffprobe_output):
-  for stream in ffprobe_output["streams"]:
-    if "codec_type" in stream and stream["codec_type"] == "video":
-      return stream
-
-def get_audio_stream_info(ffprobe_output):
-  for stream in ffprobe_output["streams"]:
-    if "codec_type" in stream and stream["codec_type"] == "audio":
-      return stream
-
 
 def guess_series_meta(filename):
     pass

@@ -5,12 +5,16 @@ import sys
 import os
 from api.models import Media, get_or_create_category
 from api import db
+import thumbs
+import binascii
 from config import PATH_TO_MOUNT, URL_TO_MOUNT, INDEX_FOLDER, VIDEO_CATEGORY_RULES
 import hashlib
 import mimetypes
 import time
 import re
 import videoinfo
+import logging
+import traceback
 
 
 def get_files():
@@ -24,7 +28,7 @@ def get_files():
     lis = []
 
     search_path = os.path.join(PATH_TO_MOUNT, INDEX_FOLDER)
-
+    logging.debug("search_path: {}".format(search_path))
     for root, dirs, files in os.walk(search_path):
         for filename in files:
             (full_mime, encoding) = mimetypes.guess_type(filename)
@@ -42,11 +46,11 @@ def get_files():
 
                     if time.time() - last_update > 5:
                         last_update = time.time()
-                        print("\rGetting files in FS... " + str(l), end="")
+                        logging.info("Getting files in FS: {}".format(l))
 
                 except os.error as err:
                     msg = "Error when accessing file '{}' in folder '{}':".format(filename, root)
-                    print(msg, err, file=sys.stderr)
+                    logging.error(msg)
 
     return lis
 
@@ -141,16 +145,19 @@ def categorize(path, mime, duration):
     return category
 
 def main():
-    print("Getting files in DB...", end="")
+    logging.basicConfig(level=logging.DEBUG)
+
+    logging.info("Scraper started.")
+    logging.info("Getting files in DB.")
     database_files = get_files_in_db()
-    print(len(database_files))
+    logging.info("Files in DB: {}".format(len(database_files)))
 
     filesystem_files = get_files()
-    print("\rGetting files in FS... " + str(len(filesystem_files)))
+    logging.info("Getting files in FS: {}".format(len(filesystem_files)))
 
     (to_upsert, to_delete) = get_deltas(database_files, filesystem_files)
 
-    print("{} to update/insert, {} to delete".format(len(to_upsert), len(to_delete)))
+    logging.info("{} to update/insert, {} to delete".format(len(to_upsert), len(to_delete)))
 
     for (relativePath, _, _) in to_delete:
         Media.query.filter_by(path=relativePath).delete()
@@ -165,7 +172,6 @@ def main():
         if "format" in mediainfo:
             duration = float(mediainfo["format"]["duration"])
 
-
         m = Media(
             path=relativePath,
             category=get_or_create_category(categorize(relativePath, mime, duration)),
@@ -178,12 +184,16 @@ def main():
         try:
             db.session.add(m)
         except:
-            print("Error adding new media to DB:", sys.exc_info()[0], file=sys.stderr)
+            logging.error("Error adding new media to DB: {}".format(sys.exc_info()[0]))
 
-        print("\rInserted {}/{}".format(i, num_to_upsert), end="")
-        i = i + 1
+        try:
+            thumbs.getThumb(str(binascii.hexlify(m.sha)), os.path.join(PATH_TO_MOUNT, m.path))
+        except:
+            logging.warning("Error generating thumb: {}".format(sys.exc_info()))
 
-    print()
+        logging.info("Inserted {}/{}".format(i, num_to_upsert))
+        i += 1
+
     db.session.commit()
 
 

@@ -5,6 +5,8 @@ import re
 import subprocess
 import shutil
 from config import *
+import logging
+import sys
 
 
 def getLength(filename):
@@ -13,7 +15,7 @@ def getLength(filename):
                                           "-show_format", filename])
         m = re.search('duration=([0-9]+\.[0-9]*)', result.decode('utf-8'))
     except:
-        print("ffmpeg (getLength) failed", filename)
+        logging.warning("ffmpeg (getLength) failed {}".format(filename))
         return 0
 
     if m:
@@ -23,9 +25,10 @@ def getLength(filename):
 
 def getThumb(title, filename):
     dir_path = os.path.join(PATH_TO_THUMBNAILS, title)
-    print("PATH: ", dir_path)
+    logging.info("thumbnail path: {}".format(dir_path))
     if os.path.exists(dir_path + ".jpg"):
-        print("thumbnail exists:", title)
+        logging.warning("thumbnail exists: {}".format(title))
+    if os.path.exists(dir_path + ".jpg"):
         return 0
 
     if not os.path.exists(dir_path):
@@ -40,7 +43,7 @@ def getThumb(title, filename):
     elif length > 30:
         start = 10
     else:
-        print("getThumb: video to short:", length, title, filename)
+        logging.info("video to short: {} {} {}".format(length, title, filename))
         shutil.rmtree(dir_path)
         return -1
     step = int((length - start) / 10)
@@ -53,11 +56,11 @@ def getThumb(title, filename):
                                      dir_path+"/out-%08d.jpg" % (i)],
                                     timeout=60)
         except subprocess.TimeoutExpired:
-            print("ffmpeg timeout:", title, "frame:", i)
+            logging.warning("ffmpeg timeout: {} frame: {}".format(title, i))
             shutil.rmtree(dir_path)
             return -1
         except Exception:
-            print("ffmpeg failed:", "frame:", i, title, filename)
+            logging.warning("ffmpeg failed: {} {} frame: {}".format(i, title, filename))
             shutil.rmtree(dir_path)
             return -1
 
@@ -65,12 +68,13 @@ def getThumb(title, filename):
 
     shutil.rmtree(dir_path)
 
+    return 0
+
 
 def mergeThumbs(title):
     try:
-        subprocess.check_output(["convert", "+append",
-                                 PATH_TO_THUMBNAILS + title +
-                                 "/out-*.jpg",
-                                 PATH_TO_THUMBNAILS + title + ".jpg"])
+        in_path = os.path.join(PATH_TO_THUMBNAILS ,title, "out-*.jpg")
+        out_path = os.path.join(PATH_TO_THUMBNAILS, title + ".jpg")
+        subprocess.check_output(["convert", "+append", in_path, out_path])
     except:
-        print("convert failed:", title)
+        logging.warning("convert failed: {}".format(title))
