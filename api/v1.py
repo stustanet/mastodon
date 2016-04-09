@@ -1,8 +1,9 @@
 from flask import Blueprint, jsonify, render_template, Response
 from flask_restful import reqparse
-from .models import Media, Category, search_media, Tag
+from .models import Media, Category, search_media, Tag, get_or_create_tag
 from api import app
 from config import basedir
+from api import db
 import os
 
 v1 = Blueprint('v1', __name__)
@@ -16,6 +17,9 @@ search_parser.add_argument("height", required=False, type=int)
 search_parser.add_argument("category", required=False, type=int)
 search_parser.add_argument("tag", required=False, action="append", default=[])
 search_parser.add_argument("order_by", required=False, default="name_asc")
+
+tag_parser = reqparse.RequestParser()
+tag_parser.add_argument("set", required=True)
 
 
 @v1.route('/')
@@ -64,7 +68,25 @@ def mediaById(media_id):
     json = jsonify(**medium.api_fields())
     return json
 
-@v1.route("/m")
+@v1.route("/media/<int:media_id>/tag/<tag_name>")
+def mediaTag(media_id, tag_name):
+    args = tag_parser.parse_args()
+
+    medium = Media.query.filter_by(media_id=media_id).first_or_404()
+    tag = get_or_create_tag(tag_name)
+
+    if args["set"] in ["True", "true", "1"]:
+        medium.tags.append(tag)
+    elif args["set"] in ["False", "false", "0"]:
+        if tag in medium.tags:
+            medium.tags.remove(tag)
+    else:
+        return "Bad Request", 400
+
+    db.session.add(medium)
+    db.session.commit()
+
+    return jsonify(**medium.api_fields())
 
 
 
