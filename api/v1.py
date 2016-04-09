@@ -25,6 +25,22 @@ def doc():
         return Response(f.read(), content_type='text')
 
 
+@v1.route('/search')
+def search():
+    args = search_parser.parse_args()
+
+    # Check that the category exists
+    if "category" in args:
+        if 0 == Category.query.filter_by(id=int(args["category"])).count():
+            return "Bad Request", 400
+
+    tags = []
+    if "tag" in args:
+        for tagId in args["tag"]:
+            if 0 < Category.query.filter_by(id=int(tagId)).count():
+                tags.append(tag)
+
+
 @v1.route('/media/<int:media_id>')
 def mediaById(media_id):
     medium = Media.query.filter_by(media_id=media_id).first_or_404()

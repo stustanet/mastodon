@@ -8,13 +8,36 @@ import binascii
 import videoinfo
 
 tag_media_association_table = db.Table('tag_media', db.metadata,
-                                       Column('tag_id',
-                                              db.Integer,
-                                              db.ForeignKey('tag.tag_id')),
-                                       Column('media_id',
-                                              db.Integer,
-                                              db.ForeignKey('media.media_id')))
+   Column('tag_id',
+         db.Integer,
+         db.ForeignKey('tag.tag_id')),
+        Column('media_id',
+        	db.Integer,
+        	db.ForeignKey('media.media_id')))
 
+# These queries search in the mediainfo JSON which looks like this
+# {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
+# jsonb_array_elemnts is used to convert the array to a set which can be queried using a SELECT
+search_codec_query = text("""\
+    (SELECT COUNT(1)
+        FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
+        WHERE  stream @> '{"codec_name":":codec_name"}'
+    ) > 0
+""")
+
+ search_width_query = text("""\
+    (SELECT COUNT(1)
+        FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
+        WHERE  stream @> '{"width":":width"}'
+    ) > 0
+ """)
+
+search_height_query = text("""\
+    (SELECT COUNT(1)
+        FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
+        WHERE  stream @> '{"height":":height"}'
+    ) > 0
+""")
 
 class Category(db.Model):
     __tablename__ = "category"
@@ -46,7 +69,7 @@ class Media(db.Model):
 
     media_id = db.Column(db.Integer, primary_key=True)
     path = db.Column(db.Text, nullable=False, unique=True)
-    mediainfo = db.Column(postgresql.JSON, nullable=False)
+    mediainfo = db.Column(postgresql.JSONB, nullable=False)
     lastModified = db.Column(db.Integer, nullable=False) # Last modified from filesystem (unix epoch)
     mimetype = db.Column(db.Text, nullable=False)
     timeLastIndexed = db.Column(db.Integer, nullable=False)
