@@ -9,10 +9,14 @@ v1 = Blueprint('v1', __name__)
 
 
 search_parser = reqparse.RequestParser()
-search_parser.add_argument('q',
-                           required=True,
-                           help="Query String cannot be blank!")
-search_parser.add_argument('tags', action='append')
+search_parser.add_argument('q', required=True, help="Query String cannot be blank!")
+search_parser.add_argument("vcodec", required=False)
+search_parser.add_argument("acodec", required=False)
+search_parser.add_argument("width", required=False)
+search_parser.add_argument("height", required=False)
+search_parser.add_argument("category", required=False)
+search_parser.add_argument("tag", required=False, action="append", default=[])
+search_parser.add_argument("sort_by", required=False, default="name_asc")
 
 
 @v1.route('/')

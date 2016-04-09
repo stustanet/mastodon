@@ -187,7 +187,7 @@ def main():
             logging.error("Error adding new media to DB: {}".format(sys.exc_info()[0]))
 
         try:
-            thumbs.getThumb(m.sha.hex()), os.path.join(PATH_TO_MOUNT, m.path))
+            thumbs.getThumb(binascii.hexlify(m.sha).decode(), os.path.join(PATH_TO_MOUNT, m.path))
         except:
             logging.warning("Error generating thumb: {}".format(sys.exc_info()))
 
