@@ -55,7 +55,7 @@ class Media(db.Model):
                         back_populates="media")
 
     def api_fields(self):
-        hex_sha = binascii.hexlify(self.sha)
+        hex_sha = str(binascii.hexlify(self.sha))
         tags = [tag.name for tag in self.tags]
         video_stream = videoinfo.get_video_stream_info()
         audio_stream = videoinfo.get

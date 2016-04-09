@@ -6,6 +6,7 @@ import subprocess
 import shutil
 from config import *
 import logging
+import sys
 
 
 def getLength(filename):
@@ -27,6 +28,7 @@ def getThumb(title, filename):
     logging.info("thumbnail path: {}".format(dir_path))
     if os.path.exists(dir_path + ".jpg"):
         logging.warning("thumbnail exists: {}".format(title))
+    if os.path.exists(dir_path + ".jpg"):
         return 0
 
     if not os.path.exists(dir_path):
@@ -66,12 +68,13 @@ def getThumb(title, filename):
 
     shutil.rmtree(dir_path)
 
+    return 0
+
 
 def mergeThumbs(title):
     try:
-        subprocess.check_output(["convert", "+append",
-                                 PATH_TO_THUMBNAILS + title +
-                                 "/out-*.jpg",
-                                 PATH_TO_THUMBNAILS + title + ".jpg"])
+        in_path = os.path.join(PATH_TO_THUMBNAILS ,title, "out-*.jpg")
+        out_path = os.path.join(PATH_TO_THUMBNAILS, title + ".jpg")
+        subprocess.check_output(["convert", "+append", in_path, out_path])
     except:
         logging.warning("convert failed: {}".format(title))
