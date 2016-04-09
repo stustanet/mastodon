@@ -10,22 +10,22 @@ import videoinfo
 tag_media_association_table = db.Table('tag_media', db.metadata,
                                        Column('tag_id',
                                               db.Integer,
-                                              db.ForeignKey('tag.id')),
+                                              db.ForeignKey('tag.tag_id')),
                                        Column('media_id',
                                               db.Integer,
-                                              db.ForeignKey('media.id')))
+                                              db.ForeignKey('media.media_id')))
 
 
 class Category(db.Model):
     __tablename__ = "category"
 
-    id = db.Column(db.Integer, primary_key=True)
+    category_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, unique=True, nullable=False)
     media = relationship("Media", back_populates="category")
 
     def api_fields(self):
         return {
-            "id": self.id,
+            "category_id": self.category_id,
             "name": self.name
         }
 
@@ -33,7 +33,7 @@ class Category(db.Model):
 class Tag(db.Model):
     __tablename__ = "tag"
 
-    id = db.Column(db.Integer, primary_key=True)
+    tag_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, unique=True, nullable=False)
 
     media = relationship("Media",
@@ -44,7 +44,7 @@ class Tag(db.Model):
 class Media(db.Model):
     __tablename__ = "media"
 
-    id = db.Column(db.Integer, primary_key=True)
+    media_id = db.Column(db.Integer, primary_key=True)
     path = db.Column(db.Text, nullable=False, unique=True)
     mediainfo = db.Column(postgresql.JSON, nullable=False)
     lastModified = db.Column(db.Integer, nullable=False) # Last modified from filesystem (unix epoch)
@@ -53,7 +53,7 @@ class Media(db.Model):
     sha = db.Column(db.Binary(length=32), nullable=False)
 
     # media requires a category
-    category_id = Column(db.Integer, ForeignKey("category.id"), nullable=False)
+    category_id = Column(db.Integer, ForeignKey("category.category_id"), nullable=False)
     category = relationship("Category", back_populates="media")
 
     tags = relationship("Tag",
@@ -65,6 +65,7 @@ class Media(db.Model):
         tags = [tag.name for tag in self.tags]
 
         mediainfo_for_api = {
+            "media_id": self.media_id,
             "path": self.path,
             "url": urllib.parse.urljoin(URL_TO_MOUNT, self.path),
             "duration": None,

@@ -24,9 +24,10 @@ def doc():
     with open(os.path.join(basedir, "api/static/docs.txt"), "r") as f:
         return Response(f.read(), content_type='text')
 
-@v1.route('/media/<int:id>')
-def mediaById(id):
-    medium = Media.query.filter_by(id=id).first_or_404()
+
+@v1.route('/media/<int:media_id>')
+def mediaById(media_id):
+    medium = Media.query.filter_by(media_id=media_id).first_or_404()
     json = jsonify(**medium.api_fields())
     return json
 
@@ -38,8 +39,8 @@ def category():
     return json
 
 
-@v1.route('/category/<int:id>')
-def categoryById(id):
-    media = Media.query.filter_by(category_id=id ).all()
+@v1.route('/category/<int:category_id>')
+def categoryById(category_id):
+    media = Media.query.filter_by(category_id=category_id).all()
     json = jsonify(media=[medium.api_fields() for medium in media])
     return json

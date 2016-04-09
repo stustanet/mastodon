@@ -48,12 +48,15 @@ class ModelTestCase(TestCase):
         db.session.add(category)
 
         media = Media(path="/foo/bar",
-          mediainfo={"width":100, "height":100, "acodec": "aac", "vcodec": "h.265"},
-          category=category,
-          mimetype="video",
-          lastModified=int(time.time()),
-          timeLastIndexed=int(time.time()),
-          sha=b'\x00'*32)
+                      mediainfo={"width": 100,
+                                 "height": 100,
+                                 "acodec": "aac",
+                                 "vcodec": "h.265"},
+                      category=category,
+                      mimetype="video",
+                      lastModified=int(time.time()),
+                      timeLastIndexed=int(time.time()),
+                      sha=b'\x00'*32)
 
         db.session.add(media)
         db.session.commit()
