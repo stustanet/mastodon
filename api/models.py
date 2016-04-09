@@ -16,13 +16,19 @@ tag_media_association_table = db.Table('tag_media', db.metadata,
                                               db.ForeignKey('media.id')))
 
 
-
 class Category(db.Model):
     __tablename__ = "category"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, unique=True, nullable=False)
     media = relationship("Media", back_populates="category")
+
+    def api_fields(self):
+        return {
+            "id": self.id,
+            "name": self.name
+        }
+
 
 class Tag(db.Model):
     __tablename__ = "tag"
@@ -55,20 +61,17 @@ class Media(db.Model):
                         back_populates="media")
 
     def api_fields(self):
-        hex_sha = str(binascii.hexlify(self.sha))
+        hex_sha = self.sha.hex()
         tags = [tag.name for tag in self.tags]
 
         mediainfo_for_api = {
             "path": self.path,
             "url": urllib.parse.urljoin(URL_TO_MOUNT, self.path),
-            "width": None,
-            "height": None,
             "duration": None,
-            "streams": []
+            "streams": [],
             "category_id": self.category_id,
             "tags": tags,
             "mimetype": self.mimetype,
-            "thumbnail_url": urllib.parse.urljoin(THUMBNAIL_ROOT_URL, hex_sha),
             "last_modified": self.lastModified,
             "last_indexed": self.timeLastIndexed,
             "sha": hex_sha
@@ -77,9 +80,7 @@ class Media(db.Model):
         if "format" in self.mediainfo:
           mediainfo_for_api["duration"] = float(self.mediainfo["format"]["duration"])
 
-        def
-
-        for stream in mediainfo["streams"]:
+        for stream in self.mediainfo["streams"]:
           # TODO: add audio stream language
           s = {
             "index": stream.get("index"),

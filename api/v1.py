@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from flask_restful import reqparse
-from .models import Media
+from .models import Media, Category
 
 v1 = Blueprint('v1', __name__)
 
@@ -31,8 +31,15 @@ def mediaById(id):
     return json
 
 
-@v1.route('/media/<id>')
-def mediabyid(id):
-    args = search_parser.parse_args()
-    response = jsonify(querystring=args['q'])
-    return response
+@v1.route('/category')
+def category():
+    categories = Category.query.all()
+    json = jsonify(categories=[category.api_fields() for category in categories])
+    return json
+
+
+@v1.route('/category/<int:id>')
+def categoryById(id):
+    media = Media.query.filter_by(category_id=id ).all()
+    json = jsonify(media=[medium.api_fields() for medium in media])
+    return json
