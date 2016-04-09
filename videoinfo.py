@@ -1,6 +1,7 @@
 from subprocess import check_output
 import json
 import sys
+import logging
 
 
 def ffprobe(filename):
@@ -13,7 +14,7 @@ def ffprobe(filename):
         return json.loads(result.decode('utf-8').strip())
 
     except:
-        print("ffprobe error: ", sys.exc_info()[0], file=sys.stderr)
+        logging.warning("ffprobe error: {}".format(sys.exc_info()[0]))
         return dict()
 
 def get_video_stream_info(ffprobe_output):
