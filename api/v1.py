@@ -10,8 +10,7 @@ v1 = Blueprint('v1', __name__)
 
 search_parser = reqparse.RequestParser()
 search_parser.add_argument('q')
-search_parser.add_argument("vcodec", required=False)
-search_parser.add_argument("acodec", required=False)
+search_parser.add_argument("codecs", required=False, default=[], action="append")
 search_parser.add_argument("width", required=False, type=int)
 search_parser.add_argument("height", required=False, type=int)
 search_parser.add_argument("category", required=False, type=int)
@@ -53,8 +52,7 @@ def search():
     elif args["order_by"] == "indexed_desc":
         order_by = Media.timeLastIndexed.desc()
 
-    media = search_media(query=args["q"], vcodec=args["vcodec"],
-        acodec=args["acodec"], width=args["width"], height=args["height"], category=args["category"],
+    media = search_media(query=args["q"], codecs=args["codecs"], width=args["width"], height=args["height"], category=args["category"],
         tags=tags, order_by=order_by)
 
     return jsonify(media=[medium.api_fields() for medium in media])
