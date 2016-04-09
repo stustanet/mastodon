@@ -2,19 +2,16 @@
 # encoding=utf8
 
 import sys
-import fnmatch
 import os
-import urllib
-from datetime import datetime
 from api.models import Media, get_or_create_category
 from api import db
 from api.constants import *
-from config import PATH_TO_MOUNT, URL_TO_MOUNT
+from config import PATH_TO_MOUNT, URL_TO_MOUNT, INDEX_FOLDER
 import hashlib
 import mimetypes
 import time
-from datetime import datetime
 import re
+import videoinfo
 
 
 def get_files():
@@ -27,7 +24,10 @@ def get_files():
 
     lis = []
 
-    for root, dirs, files in os.walk(PATH_TO_MOUNT):
+    search_path = os.path.join(PATH_TO_MOUNT, INDEX_FOLDER)
+    print("indexing ", search_path)
+
+    for root, dirs, files in os.walk(search_path):
         for filename in files:
             (full_mime, encoding) = mimetypes.guess_type(filename)
             mime = None
@@ -47,7 +47,7 @@ def get_files():
                         print("\rGetting files in FS... " + str(l), end="")
 
                 except os.error as err:
-                    print("Error when accessing file '" + filename + "' in folder '" + root + "':", err)
+                    print("Error when accessing file '" + filename + "' in folder '" + root + "':", err, file=sys.stderr)
 
     return lis
 
@@ -147,10 +147,10 @@ def categorize(path, mime, duration):
         ],
 
         CATEGORY_SERIES: [
+            ".*Series.*",
             ".*Season.*",
             ".*Episode.*",
-            #TODO:
-            #where path ~* E'S\\\\d{2}E\\\\d{2}'
+            ".*S\d{2,3}E\d{2,3}"
         ]
     }
     category = None
@@ -173,7 +173,7 @@ def categorize(path, mime, duration):
 
         if not category and duration > 4200:
             category = CATEGORY_MOVIE
-        else:
+        elif not category:
             category = CATEGORY_UNSORTED
 
     return category
@@ -198,18 +198,26 @@ def main():
     for (relativePath, mime, lastModified) in to_upsert:
         path = os.path.join(PATH_TO_MOUNT, relativePath)
 
-        mediainfo = { "duration": 1 }
+        mediainfo = videoinfo.ffprobe(path)
+        duration = 0
+        if "format" in mediainfo:
+            duration = float(mediainfo["format"]["duration"])
+
 
         m = Media(
             path=relativePath,
-            category=get_or_create_category(categorize(relativePath, mime, mediainfo["duration"])),
-            mediainfo={},
+            category=get_or_create_category(categorize(relativePath, mime, duration)),
+            mediainfo=mediainfo,
             lastModified=lastModified,
             mimetype=mime,
             timeLastIndexed=int(time.time()),
             sha=hashfile(open(path, "rb"), hashlib.sha256()))
 
-        db.session.add(m)
+        try:
+            db.session.add(m)
+        except:
+            print("Error adding new media to DB:", sys.exc_info()[0], file=sys.stderr)
+
         print("\rInserted " + str(i) + "/" + str(num_to_upsert), end="")
         i = i + 1
 
