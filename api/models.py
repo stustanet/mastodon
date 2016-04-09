@@ -3,7 +3,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship
 import urllib
-from config import THUMBNAIL_ROOT_URL, URL_TO_MOUNT
+from config import URL_TO_MOUNT
 import binascii
 import videoinfo
 
@@ -69,14 +69,18 @@ class Media(db.Model):
 
     media_id = db.Column(db.Integer, primary_key=True)
     path = db.Column(db.Text, nullable=False, unique=True)
-    mediainfo = db.Column(postgresql.JSONB, nullable=False)
-    lastModified = db.Column(db.Integer, nullable=False) # Last modified from filesystem (unix epoch)
+    mediainfo = db.Column(postgresql.JSON, nullable=False)
+    lastModified = db.Column(db.Integer,
+                             # Last modified from filesystem (unix epoch)
+                             nullable=False)
     mimetype = db.Column(db.Text, nullable=False)
     timeLastIndexed = db.Column(db.Integer, nullable=False)
     sha = db.Column(db.Binary(length=32), nullable=False)
 
     # media requires a category
-    category_id = Column(db.Integer, ForeignKey("category.category_id"), nullable=False)
+    category_id = Column(db.Integer,
+                         ForeignKey("category.category_id"),
+                         nullable=False)
     category = relationship("Category", back_populates="media")
 
     tags = relationship("Tag",
@@ -102,25 +106,27 @@ class Media(db.Model):
         }
 
         if "format" in self.mediainfo:
-          mediainfo_for_api["duration"] = float(self.mediainfo["format"]["duration"])
+            mediainfo_for_api["duration"] = \
+              float(self.mediainfo["format"]["duration"])
 
         for stream in self.mediainfo["streams"]:
-          # TODO: add audio stream language
-          s = {
-            "index": stream.get("index"),
-            "codec": stream.get("codec_name"),
-            "width": stream.get("width"),
-            "height": stream.get("height"),
-            "duration": stream.get("duration"),
-            "type": stream.get("codec_type")
-          }
+            # TODO: add audio stream language
+            s = {
+                "index": stream.get("index"),
+                "codec": stream.get("codec_name"),
+                "width": stream.get("width"),
+                "height": stream.get("height"),
+                "duration": stream.get("duration"),
+                "type": stream.get("codec_type")
+            }
 
-          if not s["duration"]:
-            s["duration"] = mediainfo_for_api["duration"]
+            if not s["duration"]:
+                s["duration"] = mediainfo_for_api["duration"]
 
-          mediainfo_for_api["streams"].append(s)
+            mediainfo_for_api["streams"].append(s)
 
-        return mediainfo_for_api
+            return mediainfo_for_api
+
 
 def get_or_create_category(name):
     r = Category.query.filter_by(name=name).first()

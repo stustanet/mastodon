@@ -8,6 +8,8 @@ from config import *
 import logging
 import sys
 
+class ThumbNotGenerated(Exception):
+    pass
 
 def getLength(filename):
     try:
@@ -28,8 +30,7 @@ def getThumb(title, filename):
     logging.info("thumbnail path: {}".format(dir_path))
     if os.path.exists(dir_path + ".jpg"):
         logging.warning("thumbnail exists: {}".format(title))
-    if os.path.exists(dir_path + ".jpg"):
-        return 0
+        raise ThumbNotGenerated
 
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
@@ -45,7 +46,8 @@ def getThumb(title, filename):
     else:
         logging.info("video to short: {} {} {}".format(length, title, filename))
         shutil.rmtree(dir_path)
-        return -1
+        raise ThumbNotGenerated
+
     step = int((length - start) / 10)
 
     for i in range(start, length, step):
@@ -58,17 +60,15 @@ def getThumb(title, filename):
         except subprocess.TimeoutExpired:
             logging.warning("ffmpeg timeout: {} frame: {}".format(title, i))
             shutil.rmtree(dir_path)
-            return -1
+            raise ThumbNotGenerated
         except Exception:
             logging.warning("ffmpeg failed: {} {} frame: {}".format(i, title, filename))
             shutil.rmtree(dir_path)
-            return -1
+            raise ThumbNotGenerated
 
     mergeThumbs(title)
 
     shutil.rmtree(dir_path)
-
-    return 0
 
 
 def mergeThumbs(title):
