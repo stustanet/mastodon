@@ -146,12 +146,14 @@ def get_or_create_tag(name):
     return r
 
 
-def search_media(query, vcodec=None, acodec=None, width=None, height=None, category=None,
+def search_media(query=None, vcodec=None, acodec=None, width=None, height=None, category=None,
                  tags=None, order_by=Media.path.asc()):
     media = Media.query
 
-    for word in query.split():
-        media = media.filter(Media.path.ilike("%{}%".format(word)))
+    if query:
+        for word in query.split():
+            print("query:", word)
+            media = media.filter(Media.path.ilike("%{}%".format(word)))
 
     if vcodec:
         media = media.filter(text(filter_codec_equals, bindparams=[bindparam("codec_name", vcodec)]))
