@@ -172,7 +172,7 @@ def get_or_create_tag(name):
 
 def search_media(query=None, codecs=[],
                  width=None, height=None, category=None,
-                 tags=None, order_by=Media.path.asc()):
+                 tags=None, order_by=Media.path.asc(), sha=None):
     media = Media.query
 
     if query:
@@ -195,6 +195,9 @@ def search_media(query=None, codecs=[],
         media = media.filter(Media.category ==
                              Category.query.filter_by
                              (category_id=category).first())
+
+    if sha:
+        media = media.filter(Media.sha == sha)
 
     if tags:
         for tag in tags:

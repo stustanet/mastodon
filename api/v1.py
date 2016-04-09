@@ -5,6 +5,7 @@ from api import app
 from config import basedir
 from api import db
 import os
+import binascii
 
 v1 = Blueprint('v1', __name__)
 
@@ -17,6 +18,7 @@ search_parser.add_argument("height", required=False, type=int)
 search_parser.add_argument("category", required=False, type=int)
 search_parser.add_argument("tag", required=False, action="append", default=[])
 search_parser.add_argument("order_by", required=False, default="name_asc")
+search_parser.add_argument("sha")
 
 
 @v1.route('/', methods=["GET"])
@@ -39,7 +41,7 @@ def search():
         for tagname in args["tag"]:
             tag = Tag.query.filter_by(name=tagname).first()
             if tag:
-                tags.append(tag.id)
+                tags.append(tag.tag_id)
             else:
                 return jsonify(media=[])
 
@@ -53,8 +55,16 @@ def search():
     elif args["order_by"] == "indexed_desc":
         order_by = Media.timeLastIndexed.desc()
 
-    media = search_media(query=args["q"], codecs=args["codecs"], width=args["width"], height=args["height"], category=args["category"],
-        tags=tags, order_by=order_by)
+    sha = None
+    if args["sha"]:
+        if len(args["sha"]) != 64:
+            return "Bad Request", 400
+
+        sha = binascii.unhexlify(args["sha"])
+
+    media = search_media(query=args["q"], codecs=args["codecs"],
+        width=args["width"], height=args["height"], category=args["category"],
+        tags=tags, order_by=order_by, sha=sha)
 
     return jsonify(media=[medium.api_fields() for medium in media])
 
