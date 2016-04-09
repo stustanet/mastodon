@@ -125,7 +125,7 @@ class Media(db.Model):
 
             mediainfo_for_api["streams"].append(s)
 
-            return mediainfo_for_api
+        return mediainfo_for_api
 
 
 def get_or_create_category(name):
