@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, render_template, Response
 from flask_restful import reqparse
-from .models import Media, Category, search_media
+from .models import Media, Category, search_media, Tag
 from api import app
 from config import basedir
 import os
@@ -9,9 +9,7 @@ v1 = Blueprint('v1', __name__)
 
 
 search_parser = reqparse.RequestParser()
-search_parser.add_argument('q',
-                           required=True,
-                           help="Query String cannot be blank!")
+search_parser.add_argument('q')
 search_parser.add_argument("vcodec", required=False)
 search_parser.add_argument("acodec", required=False)
 search_parser.add_argument("width", required=False, type=int)
@@ -38,9 +36,12 @@ def search():
 
     tags = []
     if "tag" in args:
-        for tag_id in args["tag"]:
-            if 0 < Tag.query.filter_by(tag_id=int(tag_id)).count():
-                tags.append(tag)
+        for tagname in args["tag"]:
+            tag = Tag.query.filter_by(name=tagname).first()
+            if tag:
+                tags.append(tag.id)
+            else:
+                return jsonify(media=[])
 
     order_by = None
     if args["order_by"] == "name_asc":
@@ -65,6 +66,9 @@ def mediaById(media_id):
     json = jsonify(**medium.api_fields())
     return json
 
+@v1.route("/m")
+
+
 
 @v1.route('/category')
 def category():
@@ -79,3 +83,8 @@ def categoryById(category_id):
     media = Media.query.filter_by(category_id=category_id).all()
     json = jsonify(media=[medium.api_fields() for medium in media])
     return json
+
+
+@v1.route("/tag")
+def tags():
+    return jsonify(tags=[tag for tag in Tag.query.all()])
