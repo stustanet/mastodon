@@ -23,3 +23,6 @@ URL_TO_MOUNT = ""
 PATH_TO_MOUNT = ""
 INDEX_FOLDER = ""
 THUMBNAIL_ROOT_URL = ""
+
+# dict with category name as key and an array of regex rules video paths belonging to this category have to match
+VIDEO_CATEGORY_RULES = {}

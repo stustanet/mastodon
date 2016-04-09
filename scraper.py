@@ -6,7 +6,7 @@ import os
 from api.models import Media, get_or_create_category
 from api import db
 from api.constants import *
-from config import PATH_TO_MOUNT, URL_TO_MOUNT, INDEX_FOLDER
+from config import PATH_TO_MOUNT, URL_TO_MOUNT, INDEX_FOLDER, VIDEO_CATEGORY_RULES
 import hashlib
 import mimetypes
 import time
@@ -116,53 +116,16 @@ def categorize(path, mime, duration):
     """\
     takes a relative path on mammut and returnes one of the category constants in api/constants
     """
-    videoRules = {
-        CATEGORY_NERDPORN: [
-            "a_video.fosdem.*",
-            "a_ccc_W31.*",
-            ".*nerdporn.*",
-            ".*27c3.*",
-            ".*32c3.*"
-        ],
-
-        CATEGORY_STUSTA: [
-            ".*stusta.*",
-            ".*/ssc.*"
-        ],
-
-        CATEGORY_PORN: [
-            "a_piratebay_mammut_bridge_YUO/porn/.*",
-            "a_More_Pr0n_U5N.*",
-            "a_huge_amount_of_xxX.*",
-            "a_pornstash_BuS.*",
-            "a_premium_porn_q0W.*",
-            "a_random_gay_porn_appears_RYp/.*",
-            "a_pr0n_WAG.*",
-            "006714/Linuxstuff/Vids/.*",
-            "a_kadsenvideos_q6x.*"
-        ],
-
-        CATEGORY_MUSICVIDEO: [
-            "a_Musikvideos_2gM/"
-        ],
-
-        CATEGORY_SERIES: [
-            ".*Series.*",
-            ".*Season.*",
-            ".*Episode.*",
-            ".*S\d{2,3}E\d{2,3}"
-        ]
-    }
     category = None
 
     if mime.startswith("music"):
-        category = CATEGORY_MUSIC
+        category = "music"
 
     elif mime.startswith("image"):
-        category = CATEGORY_IMAGE
+        category = "image"
 
     else:
-        for c, rules in videoRules.items():
+        for c, rules in VIDEO_CATEGORY_RULES.items():
             for rule in rules:
                 if re.match(rule, path, re.IGNORECASE):
                     category = c
@@ -172,9 +135,9 @@ def categorize(path, mime, duration):
                 break
 
         if not category and duration > 4200:
-            category = CATEGORY_MOVIE
+            category = "movie"
         elif not category:
-            category = CATEGORY_UNSORTED
+            category = "uncategorized"
 
     return category
 
