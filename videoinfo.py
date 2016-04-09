@@ -17,16 +17,5 @@ def ffprobe(filename):
         logging.warning("ffprobe error: {}".format(sys.exc_info()[0]))
         return dict()
 
-def get_video_stream_info(ffprobe_output):
-  for stream in ffprobe_output["streams"]:
-    if "codec_type" in stream and stream["codec_type"] == "video":
-      return stream
-
-def get_audio_stream_info(ffprobe_output):
-  for stream in ffprobe_output["streams"]:
-    if "codec_type" in stream and stream["codec_type"] == "audio":
-      return stream
-
-
 def guess_series_meta(filename):
     pass

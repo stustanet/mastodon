@@ -55,10 +55,8 @@ class Media(db.Model):
                         back_populates="media")
 
     def api_fields(self):
-        hex_sha = binascii.hexlify(self.sha)
+        hex_sha = str(binascii.hexlify(self.sha))
         tags = [tag.name for tag in self.tags]
-        video_stream = videoinfo.get_video_stream_info()
-        audio_stream = videoinfo.get
 
         mediainfo_for_api = {
             "path": self.path,
@@ -66,8 +64,7 @@ class Media(db.Model):
             "width": None,
             "height": None,
             "duration": None,
-            "vcodec": None,
-            "acodec": None,
+            "streams": []
             "category_id": self.category_id,
             "tags": tags,
             "mimetype": self.mimetype,
@@ -80,16 +77,25 @@ class Media(db.Model):
         if "format" in self.mediainfo:
           mediainfo_for_api["duration"] = float(self.mediainfo["format"]["duration"])
 
-        if video_stream:
-          mediainfo_for_api["width"] = video_stream["width"]
-          mediainfo_for_api["height"] = video_stream["height"]
-          mediainfo_for_api["vcodec"] = video_stream["codec_name"]
+        def
 
-        if audio_stream:
-          mediainfo_for_api["acodec"] = audio_stream["codec_name"]
+        for stream in mediainfo["streams"]:
+          # TODO: add audio stream language
+          s = {
+            "index": stream.get("index"),
+            "codec": stream.get("codec_name"),
+            "width": stream.get("width"),
+            "height": stream.get("height"),
+            "duration": stream.get("duration"),
+            "type": stream.get("codec_type")
+          }
+
+          if not s["duration"]:
+            s["duration"] = mediainfo_for_api["duration"]
+
+          mediainfo_for_api["streams"].append(s)
 
         return mediainfo_for_api
-
 
 def get_or_create_category(name):
     r = Category.query.filter_by(name=name).first()
