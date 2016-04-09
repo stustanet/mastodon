@@ -8,17 +8,19 @@ from config import URL_TO_MOUNT
 import binascii
 import videoinfo
 
-tag_media_association_table = db.Table('tag_media', db.metadata,
-   Column('tag_id',
-         db.Integer,
-         db.ForeignKey('tag.tag_id')),
-        Column('media_id',
-        	db.Integer,
-        	db.ForeignKey('media.media_id')))
+tag_media_association_table = db.Table('tag_media',
+                                       db.metadata,
+                                       Column('tag_id',
+                                              db.Integer,
+                                              db.ForeignKey('tag.tag_id')),
+                                       Column('media_id',
+                                              db.Integer,
+                                              db.ForeignKey('media.media_id')))
 
 # These queries search in the mediainfo JSON which looks like this
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
-# jsonb_array_elemnts is used to convert the array to a set which can be queried using a SELECT
+# jsonb_array_elemnts is used to convert the array to a set which can
+# be queried using a SELECT
 filter_codec_equals = """\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
@@ -39,6 +41,7 @@ filter_height_greater_equals = """\
         WHERE  (stream ->> 'height') >= ':height'
     ) > 0
 """
+
 
 class Category(db.Model):
     __tablename__ = "category"
@@ -137,6 +140,7 @@ def get_or_create_category(name):
         db.session.commit()
     return r
 
+
 def get_or_create_tag(name):
     r = Tag.query.filter_by(name=name).first()
     if not r:
@@ -146,7 +150,8 @@ def get_or_create_tag(name):
     return r
 
 
-def search_media(query=None, vcodec=None, acodec=None, width=None, height=None, category=None,
+def search_media(query=None, vcodec=None, acodec=None,
+                 width=None, height=None, category=None,
                  tags=None, order_by=Media.path.asc()):
     media = Media.query
 
@@ -156,19 +161,28 @@ def search_media(query=None, vcodec=None, acodec=None, width=None, height=None, 
             media = media.filter(Media.path.ilike("%{}%".format(word)))
 
     if vcodec:
-        media = media.filter(text(filter_codec_equals, bindparams=[bindparam("codec_name", vcodec)]))
+        media = media.filter(text(filter_codec_equals,
+                                  bindparams=[bindparam("codec_name",
+                                                        vcodec)]))
 
     if acodec:
-        media = media.filter(text(filter_codec_equals, bindparams=[bindparam("codec_name", acodec)]))
+        media = media.filter(text(filter_codec_equals,
+                                  bindparams=[bindparam("codec_name",
+                                                        acodec)]))
 
     if width:
-        media = media.filter(text(filter_width_greater_equals, bindparams=[bindparam("width", width)]))
+        media = media.filter(text(filter_width_greater_equals,
+                                  bindparams=[bindparam("width",
+                                                        width)]))
 
     if height:
-        media = media.filter(text(filter_height_greater_equals, bindparams=[bindparam("height", height)]))
+        media = media.filter(text(filter_height_greater_equals,
+                                  bindparams=[bindparam("height", height)]))
 
     if category:
-        media = media.filter(Media.category == Category.query.filter_by(category_id=category).first())
+        media = media.filter(Media.category ==
+                             Category.query.filter_by
+                             (category_id=category).first())
 
     if tags:
         for tag in tags:
