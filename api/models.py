@@ -1,6 +1,6 @@
 from api import db
 from sqlalchemy.dialects import postgresql
-from sqlalchemy import ForeignKey, Column
+from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship
 import urllib
 from config import THUMBNAIL_ROOT_URL, URL_TO_MOUNT
@@ -18,26 +18,26 @@ tag_media_association_table = db.Table('tag_media', db.metadata,
 # These queries search in the mediainfo JSON which looks like this
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
 # jsonb_array_elemnts is used to convert the array to a set which can be queried using a SELECT
-search_codec_query = text("""\
+filter_codec_equals = text("""\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
         WHERE  stream @> '{"codec_name":":codec_name"}'
-    ) > 0
+    )
 """)
 
- search_width_query = text("""\
+filter_width_greater_equals = """\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
-        WHERE  stream @> '{"width":":width"}'
-    ) > 0
- """)
+        WHERE  (stream ->> 'width') >= ':width'
+    )
+ """
 
-search_height_query = text("""\
+filter_height_greater_equals = """\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
-        WHERE  stream @> '{"height":":height"}'
-    ) > 0
-""")
+        WHERE  (stream ->> 'height') >= ':height'
+    )
+"""
 
 class Category(db.Model):
     __tablename__ = "category"
@@ -129,3 +129,41 @@ def get_or_create_category(name):
         db.session.add(r)
         db.session.commit()
     return r
+
+def get_or_create_tag(name):
+    r = Tag.query.filter_by(name=name).first()
+    if not r:
+        r = Tag(name=name)
+        db.session.add(r)
+        db.session.commit()
+    return r
+
+def search_media(query, vcodec=None, acodec=None, width=None, height=None, category=None,
+                 tags=None, order_by=Media.path.asc()):
+    media = Media.query
+
+    for word in query.split():
+        media = media.filter(Media.path.ilike("%{}%".format(word)))
+
+    #if vcodec:
+        #media = media.filter(filter_codec_equals.columns(codec_name=vocdec))
+
+    #if acodec:
+        #media = media.filter(filter_codec_equals.columns(codec_name=acodec))
+
+    #if width:
+        #media = media.filter(text(filter_width_greater_equals) > 0)
+
+    #if height:
+        #media = media.filter(text(filter_height_greater_equals) > 0)
+
+    if category:
+        media = media.filter(Media.category == Category.query.filter_by(category_id=category).first())
+
+    if tags:
+        for tag in tags:
+            media = media.filter(Media.tags.any(tag_id=tag))
+
+    media = media.order_by(order_by)
+
+    return media.all()

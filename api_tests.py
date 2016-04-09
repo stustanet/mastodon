@@ -1,7 +1,7 @@
 #!venv/bin/python
 import unittest
 from flask.ext.testing import TestCase
-from api.models import Tag, Category, Media
+from api.models import Tag, Category, Media, get_or_create_category, get_or_create_tag, search_media
 from api import app, db
 import time
 import scraper
@@ -73,6 +73,84 @@ class ModelTestCase(TestCase):
 
         assert media in medias
         assert medias[0].tags == [tag1, tag2]
+
+    def test_search(self):
+        category1 = get_or_create_category("category1")
+        category2 = get_or_create_category("category2")
+
+        tag1 = get_or_create_tag("tag1")
+        tag2 = get_or_create_tag("tag2")
+        tag3 = get_or_create_tag("tag3")
+
+        medias = [
+            Media(path="/foo/Breaking",
+                mediainfo={"streams": [
+                    {"width": 300, "height": 300, "codec_type": "video", "codec_name": "h.264", "index":0, "duration": "30.0"},
+                    {"width": None, "height": None, "codec_type": "audio", "codec_name": "aac", "index":1, "duration": "30.0"},
+                ]},
+                category=category1,
+                mimetype="video/mp4",
+                lastModified=int(time.time()),
+                timeLastIndexed=int(time.time()),
+                sha=b'\x00'*32,
+                tags=[]),
+            Media(path="/foo/Breaking.Bad.1",
+                mediainfo={"streams": [
+                    {"width": 300, "height": 300, "codec_type": "video", "codec_name": "h.265", "index":0, "duration": "30.0"},
+                    {"width": None, "height": None, "codec_type": "audio", "codec_name": "mp3", "index":1, "duration": "30.0"},
+                ]},
+                category=category1,
+                mimetype="video/mp4",
+                lastModified=int(time.time()),
+                timeLastIndexed=int(time.time()),
+                sha=b'\x00'*32,
+                tags=[tag2]),
+            Media(path="/foo/Breaking.Bad.2",
+                mediainfo={"streams": [
+                    {"width": 100, "height": 100, "codec_type": "video", "codec_name": "h.265", "index":0, "duration": "30.0"},
+                    {"width": None, "height": None, "codec_type": "audio", "codec_name": "mp3", "index":1, "duration": "30.0"},
+                ]},
+                category=category1,
+                mimetype="video/mp4",
+                lastModified=int(time.time()),
+                timeLastIndexed=int(time.time()),
+                sha=b'\x00'*32,
+                tags=[tag2]),
+            Media(path="/Breaking Bad/Episode 1",
+                mediainfo={"streams": [
+                    {"width": None, "height": None, "codec_type": "audio", "codec_name": "h.264", "index":0, "duration": "30.0"},
+                ]},
+                category=category2,
+                mimetype="audio/mp4",
+                lastModified=int(time.time()),
+                timeLastIndexed=int(time.time()),
+                sha=b'\x00'*32,
+                tags=[tag2, tag3])
+        ]
+
+        for media in medias:
+            db.session.add(media)
+        db.session.commit()
+
+        # Check that basic querying + ordering works
+        assert search_media(query="Breaking Bad") == [medias[3], medias[1], medias[2]]
+        assert search_media(query="Breaking Bad", order_by=Media.path.desc()) == [medias[2], medias[1], medias[3]]
+
+        # Check that searching by category works
+        assert search_media(query="Breaking Bad", category=category1.category_id) == [medias[1], medias[2]]
+
+        # Check that searching by tag works
+        assert search_media(query="Breaking Bad", tags=[tag2.tag_id]) == [medias[3], medias[1], medias[2]]
+        assert search_media(query="Breaking Bad", tags=[tag2.tag_id, tag3.tag_id]) == [medias[3]]
+
+        # Check that searching by category and tag works
+        assert search_media(query="Breaking Bad", tags=[tag2.tag_id, tag3.tag_id], category=category1.category_id) == []
+
+        # Check that searching by size works
+        #assert search_media(query="Breaking Bad", height=300, width=300) == [medias[1]]
+
+        # Check that searching by codec works
+
 
 
 class ScraperTestCase(TestCase):
