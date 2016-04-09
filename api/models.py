@@ -22,12 +22,30 @@ tag_media_association_table = db.Table('tag_media',
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
 # jsonb_array_elemnts is used to convert the array to a set which can
 # be queried using a SELECT
-filter_codec_equals = """\
-    (SELECT COUNT(1)
-        FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
-        WHERE  stream ->> 'codec_name' = :codec_name
-    ) > 0
-"""
+# Beware: Super duper hack!
+def filter_multiple_codecs(codecs):
+    s = ""
+    parameters = []
+    i = 1
+    for codec in codecs:
+        param_name = "codec_name_" + str(i)
+
+        if i > 1:
+            s += " AND "
+
+        s += """\
+            (SELECT COUNT(1)
+                FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
+                WHERE  stream ->> 'codec_name' = :{}
+            ) > 0
+        """.format(param_name)
+
+        parameters.append(bindparam(param_name, codec))
+
+        i += 1
+
+    return text(s, bindparams=parameters)
+
 
 filter_width_greater_equals = """\
     (SELECT COUNT(1)
@@ -162,12 +180,7 @@ def search_media(query=None, codecs=[],
             print("query:", word)
             media = media.filter(Media.path.ilike("%{}%".format(word)))
 
-    print(codecs)
-    for codec in codecs:
-        print(codec)
-        media = media.filter(text(filter_codec_equals,
-                                  bindparams=[bindparam("codec_name",
-                                                        codec)]))
+    media = media.filter(filter_multiple_codecs(codecs))
 
     if width:
         media = media.filter(text(filter_width_greater_equals,
