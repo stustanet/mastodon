@@ -47,13 +47,17 @@ class Media(db.Model):
     media_id = db.Column(db.Integer, primary_key=True)
     path = db.Column(db.Text, nullable=False, unique=True)
     mediainfo = db.Column(postgresql.JSON, nullable=False)
-    lastModified = db.Column(db.Integer, nullable=False) # Last modified from filesystem (unix epoch)
+    lastModified = db.Column(db.Integer,
+                             # Last modified from filesystem (unix epoch)
+                             nullable=False)
     mimetype = db.Column(db.Text, nullable=False)
     timeLastIndexed = db.Column(db.Integer, nullable=False)
     sha = db.Column(db.Binary(length=32), nullable=False)
 
     # media requires a category
-    category_id = Column(db.Integer, ForeignKey("category.category_id"), nullable=False)
+    category_id = Column(db.Integer,
+                         ForeignKey("category.category_id"),
+                         nullable=False)
     category = relationship("Category", back_populates="media")
 
     tags = relationship("Tag",
