@@ -25,7 +25,6 @@ def get_files():
     lis = []
 
     search_path = os.path.join(PATH_TO_MOUNT, INDEX_FOLDER)
-    print("indexing ", search_path)
 
     for root, dirs, files in os.walk(search_path):
         for filename in files:
@@ -39,7 +38,7 @@ def get_files():
                 filepath = os.path.join(root, filename)
                 try:
                     lastModified = os.path.getmtime(filepath)
-                    lis.append((os.path.relpath(filepath, PATH_TO_MOUNT), mime, int(lastModified)))
+                    lis.append((os.path.relpath(filepath, PATH_TO_MOUNT), full_mime, int(lastModified)))
                     l = l + 1
 
                     if time.time() - last_update > 5:
@@ -47,7 +46,8 @@ def get_files():
                         print("\rGetting files in FS... " + str(l), end="")
 
                 except os.error as err:
-                    print("Error when accessing file '" + filename + "' in folder '" + root + "':", err, file=sys.stderr)
+                    msg = "Error when accessing file '{}' in folder '{}':".format(filename, root)
+                    print(msg, err, file=sys.stderr)
 
     return lis
 
@@ -155,10 +155,10 @@ def categorize(path, mime, duration):
     }
     category = None
 
-    if mime == "music":
+    if mime.startswith("music"):
         category = CATEGORY_MUSIC
 
-    elif mime == "image":
+    elif mime.startswith("image"):
         category = CATEGORY_IMAGE
 
     else:
@@ -188,7 +188,7 @@ def main():
 
     (to_upsert, to_delete) = get_deltas(database_files, filesystem_files)
 
-    print(str(len(to_upsert)) + " to update/insert, " + str(len(to_delete)) + " to delete")
+    print("{} to update/insert, {} to delete".format(len(to_upsert), len(to_delete)))
 
     for (relativePath, _, _) in to_delete:
         Media.query.filter_by(path=relativePath).delete()
@@ -218,7 +218,7 @@ def main():
         except:
             print("Error adding new media to DB:", sys.exc_info()[0], file=sys.stderr)
 
-        print("\rInserted " + str(i) + "/" + str(num_to_upsert), end="")
+        print("\rInserted {}/{}".format(i, num_to_upsert), end="")
         i = i + 1
 
     print()

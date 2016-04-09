@@ -2,6 +2,10 @@ from api import db
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import ForeignKey, Table, Column
 from sqlalchemy.orm import relationship
+import urllib
+from config import THUMBNAIL_ROOT_URL, URL_TO_MOUNT
+import binascii
+import videoinfo
 
 tag_media_association_table = db.Table('tag_media', db.metadata,
     Column('tag_id', db.Integer, db.ForeignKey('tag.id')),
@@ -41,6 +45,43 @@ class Media(db.Model):
   category = relationship("Category", back_populates="media")
 
   tags = relationship("Tag", secondary=tag_media_association_table, back_populates="media")
+
+  def api_fields(self):
+    hex_sha = binascii.hexlify(self.sha)
+    tags = [tag.name for tag in self.tags]
+    video_stream = videoinfo.get_video_stream_info()
+    audio_stream = videoinfo.get
+
+    mediainfo_for_api = {
+      "path": self.path,
+      "url": urllib.parse.urljoin(URL_TO_MOUNT, self.path),
+      "width": None,
+      "height": None,
+      "duration": None,
+      "vcodec": None,
+      "acodec": None,
+      "category_id": self.category_id,
+      "tags": tags,
+      "mimetype": self.mimetype,
+      "thumbnail_url": urllib.parse.urljoin(THUMBNAIL_ROOT_URL, hex_sha),
+      "last_modified": self.lastModified,
+      "last_indexed": self.timeLastIndexed,
+      "sha": hex_sha
+    }
+
+    if "format" in self.mediainfo:
+      mediainfo_for_api["duration"] = float(self.mediainfo["format"]["duration"])
+
+    if video_stream:
+      mediainfo_for_api["width"] = video_stream["width"]
+      mediainfo_for_api["height"] = video_stream["height"]
+      mediainfo_for_api["vcodec"] = video_stream["codec_name"]
+
+    if audio_stream:
+      mediainfo_for_api["acodec"] = audio_stream["codec_name"]
+
+    return mediainfo_for_api
+
 
 
 def get_or_create_category(name):
