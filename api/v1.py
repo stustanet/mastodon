@@ -10,39 +10,31 @@ import binascii
 v1 = Blueprint('v1', __name__)
 
 
-search_parser = reqparse.RequestParser()
-search_parser.add_argument('q')
-search_parser.add_argument("codecs", required=False, default=[], action="append")
-search_parser.add_argument("width", required=False, type=int)
-search_parser.add_argument("height", required=False, type=int)
-search_parser.add_argument("category", required=False, type=int)
-search_parser.add_argument("tag", required=False, action="append", default=[])
-search_parser.add_argument("order_by", required=False, default="name_asc")
-search_parser.add_argument("sha")
-search_parser.add_argument("offset", default=0, type=int)
-search_parser.add_argument("limit", default=20, type=int)
-
 category_parser = reqparse.RequestParser()
-category_parser.add_argument("order_by", default="name_asc")
-category_parser.add_argument("limit", default=20, type=int)
+category_parser.add_argument("codecs", required=False, default=[], action="append")
+category_parser.add_argument("width", required=False, type=int)
+category_parser.add_argument("height", required=False, type=int)
+category_parser.add_argument("category", required=False, type=int)
+category_parser.add_argument("tag", required=False, action="append", default=[])
+category_parser.add_argument("order_by", required=False, default="name_asc")
+category_parser.add_argument("sha")
 category_parser.add_argument("offset", default=0, type=int)
+category_parser.add_argument("limit", default=20, type=int)
+
+search_parser = category_parser.copy()
+search_parser.add_argument("q")
 
 
-
-@v1.route('/', methods=["GET"])
-def doc():
-    with open(os.path.join(basedir, "api/static/docs.txt"), "r") as f:
-        return Response(f.read(), content_type='text')
-
-
-@v1.route('/search', methods=["GET"])
-def search():
-    args = search_parser.parse_args()
-
+def do_search(args):
+    """\
+    Takes the output of search_parser as an argument and returns the output of the search_media function (an array)
+    Returns a string with the error message for bad input
+    Works with the output of category_parser as well
+    """
     # Check that the category exists
     if "category" in args and args["category"]:
         if 0 == Category.query.filter_by(id=int(args["category"])).count():
-            return "Bad Request", 400
+            return "category not existing"
 
     tags = []
     if "tag" in args:
@@ -66,17 +58,55 @@ def search():
     sha = None
     if args["sha"]:
         if len(args["sha"]) != 64:
-            return "Bad Request", 400
+            return "sha too long"
 
         sha = binascii.unhexlify(args["sha"])
 
     limit = args["limit"]
     if limit > 100:
         limit = 100
+    elif limit < 0:
+        return "negative limit"
 
-    media = search_media(query=args["q"], codecs=args["codecs"],
+    if args["offset"] < 0:
+        return "negative offset"
+
+    if "width" in args and args["width"] < 0:
+        return "negative width"
+
+    if "height" in args and args["height"] < 0:
+        return "negative height"
+
+
+
+    codecs = []
+    for codec in args["codecs"]:
+        if "," in codec:
+            codecs.extend(codec.split(","))
+        else:
+            codecs.append(codec)
+
+
+    return search_media(query=args["q"], codecs=codecs,
         width=args["width"], height=args["height"], category=args["category"],
         tags=tags, order_by=order_by, sha=sha, limit=limit, offset=args["offset"])
+
+
+
+@v1.route('/', methods=["GET"])
+def doc():
+    with open(os.path.join(basedir, "api/static/docs.txt"), "r") as f:
+        return Response(f.read(), content_type='text')
+
+
+
+@v1.route('/search', methods=["GET"])
+def search():
+    args = search_parser.parse_args()
+
+    media = do_search(args)
+    if type(media) is str:
+        return "Bad Request: " + media, 400
 
     return jsonify(media=[medium.api_fields() for medium in media])
 
@@ -119,22 +149,12 @@ def category():
 @v1.route('/category/<int:category_id>', methods=["GET"])
 def categoryById(category_id):
     args = category_parser.parse_args()
+    args["q"] = None
 
-    order_by = None
-    if args["order_by"] == "name_asc":
-        order_by = Media.path.asc()
-    elif args["order_by"] == "name_desc":
-        order_by = Media.path.desc()
-    elif args["order_by"] == "indexed_asc":
-        order_by = Media.timeLastIndexed.asc()
-    elif args["order_by"] == "indexed_desc":
-        order_by = Media.timeLastIndexed.desc()
+    media = do_search(args)
+    if type(media) is str:
+        return "Bad Request: " + media, 400
 
-    limit = args["limit"]
-    if limit > 100:
-        limit = 100
-
-    media = Media.query.filter_by(category_id=category_id).order_by(order_by).offset(args["offset"]).limit(limit).all()
     json = jsonify(media=[medium.api_fields() for medium in media])
     return json
 
