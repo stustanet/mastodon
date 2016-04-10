@@ -130,7 +130,7 @@ class Media(db.Model):
         mediainfo_for_api["thumbnail"] = urllib.parse.urljoin(THUMBNAIL_ROOT_URL, hex_sha+".jpg")
 
 
-        if "format" in self.mediainfo:
+        if "format" in self.mediainfo and "duration" in self.mediainfo["format"]:
             mediainfo_for_api["duration"] = \
               float(self.mediainfo["format"]["duration"])
 
@@ -145,7 +145,7 @@ class Media(db.Model):
                 "type": stream.get("codec_type")
             }
 
-            if not s["duration"]:
+            if not s["duration"] and "duration" in mediainfo_for_api:
                 s["duration"] = mediainfo_for_api["duration"]
 
             mediainfo_for_api["streams"].append(s)
