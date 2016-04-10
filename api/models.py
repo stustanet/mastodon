@@ -1,14 +1,14 @@
-from api import db
+from api import db,app
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import bindparam
 import urllib
-from config import URL_TO_MOUNT
+from config import URL_TO_MOUNT, THUMBNAIL_ROOT_URL
 import binascii
 import videoinfo
 import logging
-from flask import jsonify
+from flask import jsonify, url_for
 
 tag_media_association_table = db.Table('tag_media',
                                        db.metadata,
@@ -123,8 +123,12 @@ class Media(db.Model):
             "last_modified": self.lastModified,
             "last_indexed": self.timeLastIndexed,
             "sha": hex_sha,
-            "raw_mediainfo" : None
+            "raw_mediainfo" : None,
+            "thumbnail": ""
         }
+
+        mediainfo_for_api["thumbnail"] = urllib.parse.urljoin(THUMBNAIL_ROOT_URL, hex_sha+".jpg")
+
 
         if "format" in self.mediainfo:
             mediainfo_for_api["duration"] = \
