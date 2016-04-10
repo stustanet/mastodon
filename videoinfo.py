@@ -14,7 +14,7 @@ def ffprobe(filename):
         return json.loads(result.decode('utf-8').strip())
 
     except:
-        logging.warning("ffprobe error: {}".format(sys.exc_info()))
+        #logging.warning("ffprobe error: {}".format(sys.exc_info()))
         return dict()
 
 def guess_series_meta(filename):

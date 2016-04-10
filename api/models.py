@@ -1,4 +1,4 @@
-from api import db,app
+from api import db
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship

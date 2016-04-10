@@ -8,9 +8,6 @@ from config import *
 import logging
 import sys
 
-class ThumbNotGenerated(Exception):
-    pass
-
 def getLength(filename):
     try:
         result = subprocess.check_output(["ffprobe", "-v", "quiet",
@@ -18,23 +15,25 @@ def getLength(filename):
         m = re.search('duration=([0-9]+\.[0-9]*)', result.decode('utf-8'))
     except:
         logging.warning("ffmpeg (getLength) failed {}".format(filename))
-        return 0
+        return None
 
     if m:
         return float(m.group(1))
-    return 0
+
+    return None
 
 
-def getThumb(title, filename):
+def generateThumb(title, filename):
     dir_path = os.path.join(PATH_TO_THUMBNAILS, title)
-    logging.info("thumbnail path: {}".format(dir_path))
     if os.path.exists(dir_path + ".jpg"):
-        logging.warning("thumbnail exists: {}".format(title))
-        raise ThumbNotGenerated
+        return
 
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
-    length = int(getLength(filename))
+
+    length = getLength(filename)
+    if not length:
+        return
 
     # movies, tv shows
     if length > 600:
@@ -44,9 +43,8 @@ def getThumb(title, filename):
     elif length > 30:
         start = 10
     else:
-        logging.info("video to short: {} {} {}".format(length, title, filename))
         shutil.rmtree(dir_path)
-        raise ThumbNotGenerated
+        return
 
     step = int((length - start) / 10)
 
@@ -60,11 +58,12 @@ def getThumb(title, filename):
         except subprocess.TimeoutExpired:
             logging.warning("ffmpeg timeout: {} frame: {}".format(title, i))
             shutil.rmtree(dir_path)
-            raise ThumbNotGenerated
+            return
+
         except Exception:
             logging.warning("ffmpeg failed: {} {} frame: {}".format(i, title, filename))
             shutil.rmtree(dir_path)
-            raise ThumbNotGenerated
+            return
 
     mergeThumbs(title)
 
