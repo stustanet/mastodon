@@ -71,10 +71,10 @@ def do_search(args):
     if args["offset"] < 0:
         return "negative offset"
 
-    if "width" in args and args["width"] < 0:
+    if args["width"] != None and args["width"] < 0:
         return "negative width"
 
-    if "height" in args and args["height"] < 0:
+    if args["height"] != None and args["height"] < 0:
         return "negative height"
 
 
@@ -85,7 +85,6 @@ def do_search(args):
             codecs.extend(codec.split(","))
         else:
             codecs.append(codec)
-
 
     return search_media(query=args["q"], codecs=codecs,
         width=args["width"], height=args["height"], category=args["category"],
