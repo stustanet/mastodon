@@ -7,7 +7,7 @@ from api.models import Media, get_or_create_category
 from api import db
 import thumbs
 import binascii
-from config import PATH_TO_MOUNT, URL_TO_MOUNT, INDEX_FOLDER, VIDEO_CATEGORY_RULES, POOL_PROCESSES
+from config import PATH_TO_MOUNT, URL_TO_MOUNT, INDEX_FOLDER, VIDEO_CATEGORY_RULES
 import hashlib
 import mimetypes
 import time
@@ -15,7 +15,7 @@ import re
 import videoinfo
 import logging
 import traceback
-from multiprocessing import Process, Manager, Pool
+from concurrent.futures import ProcessPoolExecutor
 
 
 def get_files():
@@ -145,7 +145,7 @@ def categorize(path, mime, duration):
 
     return category
 
-def async_index_medium(queue, relativePath, mime, lastModified):
+def async_index_medium(relativePath, mime, lastModified):
     """\
     Takes three arguments path, mime, lsatModified(directly from get_deltas)
     And does all operations to index the medium:
@@ -158,17 +158,21 @@ def async_index_medium(queue, relativePath, mime, lastModified):
     global variables.
     It will create its own DB Connection
     """
-    logging.basicConfig(level=logging.DEBUG)
+
     logging.info("Indexing {}".format(relativePath))
 
     # get a custom instance of db
-    from api import db
+    #from api import db
 
     path = os.path.join(PATH_TO_MOUNT, relativePath)
+    logging.info("Indexing 2 {}".format(relativePath))
+
+    sha = hashfile(open(path, "rb"), hashlib.sha256())
+    logging.info("Indexing 3 {}".format(relativePath))
 
     mediainfo = videoinfo.ffprobe(path)
     duration = 0
-    if "format" in mediainfo:
+    if "format" in mediainfo and "duration" in mediainfo["format"]:
         duration = float(mediainfo["format"]["duration"])
 
     m = Media(
@@ -178,7 +182,7 @@ def async_index_medium(queue, relativePath, mime, lastModified):
         lastModified=lastModified,
         mimetype=mime,
         timeLastIndexed=int(time.time()),
-        sha=hashfile(open(path, "rb"), hashlib.sha256()))
+        sha=sha)
 
     try:
         db.session.add(m)
@@ -193,24 +197,9 @@ def async_index_medium(queue, relativePath, mime, lastModified):
             logging.warning("Error generating thumb: {}".format(sys.exc_info()))
 
     logging.info("Finished indexing {}".format(relativePath))
-    queue.put(True)
-
-def progress_process(queue, total):
-    logging.basicConfig(level=logging.DEBUG)
-    i = 0
-    while True:
-        if queue.get():
-            i = i + 1
-            logging.info("Indexed {}/{}".format(i, total))
-        else:
-            return
-
 
 def main():
-    m = Manager()
-    q = m.Queue()
-
-    with Pool(processes=POOL_PROCESSES) as pool:
+    with ProcessPoolExecutor() as executor:
         logging.basicConfig(level=logging.DEBUG)
 
         logging.info("Scraper started.")
@@ -225,8 +214,6 @@ def main():
 
         logging.info("{} to update/insert, {} to delete".format(len(to_upsert), len(to_delete)))
 
-        logging.info("Started pool with {} processes".format(POOL_PROCESSES))
-
         for (relativePath, _, _) in to_delete:
             Media.query.filter_by(path=relativePath).delete()
 
@@ -234,19 +221,11 @@ def main():
 
         num_to_upsert = len(to_upsert)
 
-        # start a process to show index progress
-        p = Process(target=progress_process, args=(q, num_to_upsert, ))
-        p.start()
-
         for (relativePath, mime, lastModified) in to_upsert:
-            pool.apply_async(async_index_medium, [q, relativePath, mime, lastModified])
+            #executor.submit(async_index_medium, relativePath, mime, lastModified)
+            async_index_medium(relativePath, mime, lastModified)
 
-
-        pool.close()
-        pool.join()
-        q.put(None)
-        logging.info("Waiting for progress process to finish...")
-        p.join()
+        executor.shutdown(wait=False)
 
 if __name__ == "__main__":
     main()
