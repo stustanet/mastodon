@@ -150,7 +150,7 @@ class ModelTestCase(TestCase):
         assert search_media(query="Breaking Bad", height=300, width=300) == [medias[1]]
 
         # Check that searching by codec works
-        assert search_media(query="Breaking Bad", vcodec="h.264") == [medias[3]]
+        assert search_media(query="Breaking Bad", codecs=["h.264"]) == [medias[3]]
 
 
 

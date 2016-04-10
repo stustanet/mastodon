@@ -178,21 +178,19 @@ def get_or_create_tag(name):
 
 
 def search_media(query=None, codecs=[],
-                 width=None, height=None, category=None,
+                 width=None, height=None, category=None, mime=None,
                  tags=None, order_by=Media.path.asc(), sha=None, offset=0, limit=20):
     media = Media.query
 
     if query:
         for word in query.split():
-            print("query:", word)
             media = media.filter(Media.path.ilike("%{}%".format(word)))
 
     media = media.filter(filter_multiple_codecs(codecs))
 
     if width:
         media = media.filter(text(filter_width_greater_equals,
-                                  bindparams=[bindparam("width",
-                                                        width)]))
+                                  bindparams=[bindparam("width", width)]))
 
     if height:
         media = media.filter(text(filter_height_greater_equals,
@@ -209,6 +207,9 @@ def search_media(query=None, codecs=[],
     if tags:
         for tag in tags:
             media = media.filter(Media.tags.any(tag_id=tag))
+
+    if mime:
+        media = media.filter(Media.mimetype == mime)
 
     media = media.order_by(order_by)
 

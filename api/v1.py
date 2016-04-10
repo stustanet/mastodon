@@ -18,6 +18,7 @@ category_parser.add_argument("category", required=False, type=int)
 category_parser.add_argument("tag", required=False, action="append", default=[])
 category_parser.add_argument("order_by", required=False, default="name_asc")
 category_parser.add_argument("sha")
+category_parser.add_argument("mime")
 category_parser.add_argument("offset", default=0, type=int)
 category_parser.add_argument("limit", default=20, type=int)
 
@@ -86,7 +87,7 @@ def do_search(args):
         else:
             codecs.append(codec)
 
-    return search_media(query=args["q"], codecs=codecs,
+    return search_media(query=args["q"], codecs=codecs, mime=args["mime"],
         width=args["width"], height=args["height"], category=args["category"],
         tags=tags, order_by=order_by, sha=sha, limit=limit, offset=args["offset"])
 
