@@ -254,6 +254,7 @@ def main():
             medium.category = get_or_create_category(category)
 
             db.session.add(medium)
+            db.session.commit()
         else:
             workers_finished = workers_finished + 1
             if workers_finished == len(processes):

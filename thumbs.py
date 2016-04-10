@@ -7,6 +7,7 @@ import shutil
 from config import *
 import logging
 import sys
+import math
 
 def getLength(filename):
     try:
@@ -18,7 +19,7 @@ def getLength(filename):
         return None
 
     if m:
-        return int(m.group(1))
+        return math.floor(float(m.group(1)))
 
     return None
 
