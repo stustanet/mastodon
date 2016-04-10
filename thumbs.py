@@ -18,7 +18,7 @@ def getLength(filename):
         return None
 
     if m:
-        return float(m.group(1))
+        return int(m.group(1))
 
     return None
 

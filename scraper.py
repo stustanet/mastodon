@@ -155,7 +155,7 @@ def index_medium(queue, relativePath, mime, lastModified):
     - create thumbnail
     """
 
-    #logging.info("Indexing {}".format(relativePath))
+    logging.info("Indexing {}".format(relativePath))
 
     # get a custom instance of db
     #from api import db
@@ -184,6 +184,8 @@ def index_medium(queue, relativePath, mime, lastModified):
              thumbs.generateThumb(binascii.hexlify(m.sha).decode(), os.path.join(PATH_TO_MOUNT, m.path))
         except:
             logging.warning("Error generating thumb: {}".format(sys.exc_info()))
+
+    logging.info("Finished indexing {}".format(relativePath))
 
 # This runs in a seperate process
 # It should be very safe from crashing
