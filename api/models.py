@@ -213,4 +213,6 @@ def search_media(query=None, codecs=[],
 
     media = media.order_by(order_by)
 
-    return media.limit(limit).offset(offset).all()
+    count = media.count()
+
+    return (count, media.limit(limit).offset(offset).all())

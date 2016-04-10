@@ -104,11 +104,13 @@ def doc():
 def search():
     args = search_parser.parse_args()
 
-    media = do_search(args)
-    if type(media) is str:
-        return "Bad Request: " + media, 400
+    result = do_search(args)
+    if type(result) is str:
+        return "Bad Request: " + result, 400
 
-    return jsonify(media=[medium.api_fields() for medium in media])
+    (count, media) = result
+
+    return jsonify(total=count, media=[medium.api_fields() for medium in media])
 
 
 @v1.route('/media/<int:media_id>', methods=["GET"])
@@ -151,11 +153,14 @@ def categoryById(category_id):
     args = category_parser.parse_args()
     args["q"] = None
 
-    media = do_search(args)
-    if type(media) is str:
-        return "Bad Request: " + media, 400
+    result = do_search(args)
+    if type(result) is str:
+        return "Bad Request: " + result, 400
 
-    json = jsonify(media=[medium.api_fields() for medium in media])
+    (count, media) = result
+
+
+    json = jsonify(total=count, media=[medium.api_fields() for medium in media])
     return json
 
 
