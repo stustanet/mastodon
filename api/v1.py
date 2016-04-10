@@ -14,7 +14,6 @@ category_parser = reqparse.RequestParser()
 category_parser.add_argument("codecs", required=False, default=[], action="append")
 category_parser.add_argument("width", required=False, type=int)
 category_parser.add_argument("height", required=False, type=int)
-category_parser.add_argument("category", required=False, type=int)
 category_parser.add_argument("tag", required=False, action="append", default=[])
 category_parser.add_argument("order_by", required=False, default="name_asc")
 category_parser.add_argument("sha")
@@ -24,6 +23,7 @@ category_parser.add_argument("limit", default=20, type=int)
 
 search_parser = category_parser.copy()
 search_parser.add_argument("q")
+search_parser.add_argument("category")
 
 
 def do_search(args):
@@ -32,10 +32,6 @@ def do_search(args):
     Returns a string with the error message for bad input
     Works with the output of category_parser as well
     """
-    # Check that the category exists
-    if "category" in args and args["category"]:
-        if 0 == Category.query.filter_by(id=int(args["category"])).count():
-            return "category not existing"
 
     tags = []
     if "tag" in args:
@@ -104,6 +100,10 @@ def doc():
 def search():
     args = search_parser.parse_args()
 
+    if args["category"]:
+        category = Category.query.filter_by(name=args["category"]).first_or_404()
+        args["category"] = category.category_id
+
     result = do_search(args)
     if type(result) is str:
         return "Bad Request: " + result, 400
@@ -142,16 +142,19 @@ def mediaTag(media_id, tag_name):
 def category():
     categories = Category.query.all()
 
-    json = jsonify(categories=[category.api_fields()
+    json = jsonify(categories=[category.name
                                for category in categories])
 
     return json
 
 
-@v1.route('/category/<int:category_id>', methods=["GET"])
-def categoryById(category_id):
+@v1.route('/category/<category>', methods=["GET"])
+def categoryById(category):
     args = category_parser.parse_args()
     args["q"] = None
+
+    category = Category.query.filter_by(name=category).first_or_404()
+    args["category"] = category.category_id
 
     result = do_search(args)
     if type(result) is str:

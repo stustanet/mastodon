@@ -133,24 +133,24 @@ class ModelTestCase(TestCase):
         db.session.commit()
 
         # Check that basic querying + ordering works
-        assert search_media(query="Breaking Bad") == [medias[3], medias[1], medias[2]]
-        assert search_media(query="Breaking Bad", order_by=Media.path.desc()) == [medias[2], medias[1], medias[3]]
+        assert search_media(query="Breaking Bad")[1] == [medias[3], medias[1], medias[2]]
+        assert search_media(query="Breaking Bad", order_by=Media.path.desc())[1] == [medias[2], medias[1], medias[3]]
 
         # Check that searching by category works
-        assert search_media(query="Breaking Bad", category=category1.category_id) == [medias[1], medias[2]]
+        assert search_media(query="Breaking Bad", category=category1.category_id)[1] == [medias[1], medias[2]]
 
         # Check that searching by tag works
-        assert search_media(query="Breaking Bad", tags=[tag2.tag_id]) == [medias[3], medias[1], medias[2]]
-        assert search_media(query="Breaking Bad", tags=[tag2.tag_id, tag3.tag_id]) == [medias[3]]
+        assert search_media(query="Breaking Bad", tags=[tag2.tag_id])[1] == [medias[3], medias[1], medias[2]]
+        assert search_media(query="Breaking Bad", tags=[tag2.tag_id, tag3.tag_id])[1] == [medias[3]]
 
         # Check that searching by category and tag works
-        assert search_media(query="Breaking Bad", tags=[tag2.tag_id, tag3.tag_id], category=category1.category_id) == []
+        assert search_media(query="Breaking Bad", tags=[tag2.tag_id, tag3.tag_id], category=category1.category_id)[1] == []
 
         # Check that searching by size works
-        assert search_media(query="Breaking Bad", height=300, width=300) == [medias[1]]
+        assert search_media(query="Breaking Bad", height=300, width=300)[1] == [medias[1]]
 
         # Check that searching by codec works
-        assert search_media(query="Breaking Bad", codecs=["h.264"]) == [medias[3]]
+        assert search_media(query="Breaking Bad", codecs=["h.264"])[1] == [medias[3]]
 
 
 

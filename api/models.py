@@ -70,12 +70,6 @@ class Category(db.Model):
     name = db.Column(db.Text, unique=True, nullable=False)
     media = relationship("Media", back_populates="category")
 
-    def api_fields(self):
-        return {
-            "category_id": self.category_id,
-            "name": self.name
-        }
-
 
 class Tag(db.Model):
     __tablename__ = "tag"
@@ -123,7 +117,7 @@ class Media(db.Model):
                                         urllib.parse.quote(self.path)),
             "duration": None,
             "streams": [],
-            "category_id": self.category_id,
+            "category": self.category.name,
             "tags": tags,
             "mimetype": self.mimetype,
             "last_modified": self.lastModified,
@@ -197,9 +191,7 @@ def search_media(query=None, codecs=[],
                                   bindparams=[bindparam("height", height)]))
 
     if category:
-        media = media.filter(Media.category ==
-                             Category.query.filter_by
-                             (category_id=category).first())
+        media = media.filter(Media.category_id == category)
 
     if sha:
         media = media.filter(Media.sha == sha)
