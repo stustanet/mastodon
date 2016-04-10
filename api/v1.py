@@ -84,7 +84,7 @@ def search():
 @v1.route('/media/<int:media_id>', methods=["GET"])
 def mediaById(media_id):
     medium = Media.query.filter_by(media_id=media_id).first_or_404()
-    json = jsonify(**medium.api_fields())
+    json = jsonify(**medium.api_fields(include_raw_mediainfo=True))
     return json
 
 

@@ -8,6 +8,7 @@ from config import URL_TO_MOUNT
 import binascii
 import videoinfo
 import logging
+from flask import jsonify
 
 tag_media_association_table = db.Table('tag_media',
                                        db.metadata,
@@ -111,7 +112,7 @@ class Media(db.Model):
                         back_populates="media",
                         cascade="all")
 
-    def api_fields(self):
+    def api_fields(self, include_raw_mediainfo=False):
         hex_sha = binascii.hexlify(self.sha).decode("ascii")
         tags = [tag.name for tag in self.tags]
 
@@ -127,7 +128,8 @@ class Media(db.Model):
             "mimetype": self.mimetype,
             "last_modified": self.lastModified,
             "last_indexed": self.timeLastIndexed,
-            "sha": hex_sha
+            "sha": hex_sha,
+            "raw_mediainfo" : None
         }
 
         if "format" in self.mediainfo:
@@ -149,6 +151,10 @@ class Media(db.Model):
                 s["duration"] = mediainfo_for_api["duration"]
 
             mediainfo_for_api["streams"].append(s)
+
+        if include_raw_mediainfo:
+            mediainfo_for_api["raw_mediainfo"] = self.mediainfo
+
 
         return mediainfo_for_api
 
