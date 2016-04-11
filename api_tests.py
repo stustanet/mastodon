@@ -97,7 +97,7 @@ class ModelTestCase(TestCase):
             Media(path="/foo/Breaking.Bad.1",
                 mediainfo={"streams": [
                     {"width": 300, "height": 300, "codec_type": "video", "codec_name": "h.265", "index":0, "duration": "30.0"},
-                    {"width": None, "height": None, "codec_type": "audio", "codec_name": "mp3", "index":1, "duration": "30.0"},
+                    {"width": None, "height": None, "codec_type": "audio", "codec_name": "aac", "index":1, "duration": "30.0"},
                 ]},
                 category=category1,
                 mimetype="video/mp4",
@@ -150,7 +150,12 @@ class ModelTestCase(TestCase):
         assert search_media(query="Breaking Bad", height=300, width=300)[1] == [medias[1]]
 
         # Check that searching by codec works
-        assert search_media(query="Breaking Bad", codecs=["h.264"])[1] == [medias[3]]
+        assert search_media(query="Breaking Bad", codecs=[["h.264"]])[1] == [medias[3]]
+        assert search_media(query="Breaking Bad", codecs=[["h.264"], ["h.265", "mp3"]])[1] == [medias[3], medias[2]]
+
+        # Check that searchy by mime works
+        assert search_media(query="Breaking Bad", mime=["audio/mp4"])[1] == [medias[3]]
+        assert search_media(query="Breaking Bad", mime=["audio/mp4", "video/mp4"])[1] == [medias[3], medias[1], medias[2]]
 
 
 

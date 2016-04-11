@@ -1,9 +1,10 @@
 from flask import Flask, url_for, redirect
 from flask.ext.sqlalchemy import SQLAlchemy
 import config
-
+from flask.ext.cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 app.config.from_object("config")
 db = SQLAlchemy(app)
 

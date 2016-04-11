@@ -11,13 +11,16 @@ v1 = Blueprint('v1', __name__)
 
 
 category_parser = reqparse.RequestParser()
+# The codecs and mime argument can appear multiple times in a query
+# Multiple occurences of these arguments mean an OR in the query
+# example: ?codecs=h264,aac&codecs=vp8 means "(h264 AND aac) OR VP8"
 category_parser.add_argument("codecs", required=False, default=[], action="append")
 category_parser.add_argument("width", required=False, type=int)
 category_parser.add_argument("height", required=False, type=int)
 category_parser.add_argument("tag", required=False, action="append", default=[])
 category_parser.add_argument("order_by", required=False, default="name_asc")
 category_parser.add_argument("sha")
-category_parser.add_argument("mime")
+category_parser.add_argument("mime", action="append", default=[])
 category_parser.add_argument("offset", default=0, type=int)
 category_parser.add_argument("limit", default=20, type=int)
 

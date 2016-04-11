@@ -23,29 +23,63 @@ tag_media_association_table = db.Table('tag_media',
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
 # jsonb_array_elemnts is used to convert the array to a set which can
 # be queried using a SELECT
+#
 # Beware: Super duper hack!
-def filter_multiple_codecs(codecs):
-    s = ""
+#
+# TODO/FIXME: There is some way to construct these queries using the sqlalchemy query builder
+# There just seems no good documentation (besides this - https://bitbucket.org/zzzeek/sqlalchemy/issues/3566/figure-out-how-to-support-all-of-pgs#comment-22842678)
+def filter_multiple_codecs_and(codecs, i=0):
     parameters = []
-    i = 1
+    queries = []
     for codec in codecs:
         param_name = "codec_name_" + str(i)
+        i = i + 1
 
-        if i > 1:
-            s += " AND "
-
-        s += """\
+        # No, there is no obvious SQL injection possible here
+        # The format is just to include a parameter for sqlalchemy with variable name
+        # ...
+        queries.append("""\
             (SELECT COUNT(1)
                 FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
                 WHERE  stream ->> 'codec_name' = :{}
             ) > 0
-        """.format(param_name)
+        """.format(param_name))
 
+        # ...
+        # The user supplied parameters are bind to the query here
+        # and inserted by sqlalchemy later
         parameters.append(bindparam(param_name, codec))
 
-        i += 1
+    return (" AND ".join(queries), parameters)
 
-    return text(s, bindparams=parameters)
+# Takes a lists of lists, applies filter_multiple_codecs_and
+# on each lists and joins the output of each list with an OR
+# example [["h264", "aac"], ["vp8"]] ==> (*codec_is* h264 AND *codec_is* aac) OR (*codec_is* vp8)
+def filter_multiple_codecs_or(codecs):
+    # filter_multiple_codecs_and doesn't return the sqlalchemy.text(string, parameters)
+    # version but the string and parameters seperately so they can be joined by OR's here easily
+    # thats why filter_multiple_codecs_and needs an optional argument,
+    # the index from where to start naming parameters from to prevent collisions
+    i = 0
+    and_queries = []
+
+    # the text function from sqlalchemy expects bindparams to be
+    # a list of objects returned by the bindparam function
+    # filter_multiple_codecs_and returns such a list so we just need to join the lists here
+    parameters = []
+    for and_codecs in codecs:
+        (query, params) = filter_multiple_codecs_and(and_codecs, i=i)
+        and_queries.append("(" + query + ")")
+        parameters.extend(params)
+
+        # filter_multiple_codecs_and used len(params) parameters
+        i = i + len(params)
+
+
+    return text(" OR ".join(and_queries), bindparams=parameters)
+
+
+
 
 
 filter_width_greater_equals = """\
@@ -134,21 +168,22 @@ class Media(db.Model):
             mediainfo_for_api["duration"] = \
               float(self.mediainfo["format"]["duration"])
 
-        for stream in self.mediainfo["streams"]:
-            # TODO: add audio stream language
-            s = {
-                "index": stream.get("index"),
-                "codec": stream.get("codec_name"),
-                "width": stream.get("width"),
-                "height": stream.get("height"),
-                "duration": stream.get("duration"),
-                "type": stream.get("codec_type")
-            }
+        if "streams" in self.mediainfo:
+            for stream in self.mediainfo["streams"]:
+                # TODO: add audio stream language
+                s = {
+                    "index": stream.get("index"),
+                    "codec": stream.get("codec_name"),
+                    "width": stream.get("width"),
+                    "height": stream.get("height"),
+                    "duration": stream.get("duration"),
+                    "type": stream.get("codec_type")
+                }
 
-            if not s["duration"] and "duration" in mediainfo_for_api:
-                s["duration"] = mediainfo_for_api["duration"]
+                if not s["duration"] and "duration" in mediainfo_for_api:
+                    s["duration"] = mediainfo_for_api["duration"]
 
-            mediainfo_for_api["streams"].append(s)
+                mediainfo_for_api["streams"].append(s)
 
         if include_raw_mediainfo:
             mediainfo_for_api["raw_mediainfo"] = self.mediainfo
@@ -175,8 +210,10 @@ def get_or_create_tag(name):
     return r
 
 
+# both codecs and mime are lists of lists
+# the outer list means OR and the inner list means AND
 def search_media(query=None, codecs=[],
-                 width=None, height=None, category=None, mime=None,
+                 width=None, height=None, category=None, mime=[],
                  tags=None, order_by=Media.path.asc(), sha=None, offset=0, limit=20):
     media = Media.query
 
@@ -184,7 +221,7 @@ def search_media(query=None, codecs=[],
         for word in query.split():
             media = media.filter(Media.path.ilike("%{}%".format(word)))
 
-    media = media.filter(filter_multiple_codecs(codecs))
+    media = media.filter(filter_multiple_codecs_or(codecs))
 
     if width:
         media = media.filter(text(filter_width_greater_equals,
@@ -204,8 +241,15 @@ def search_media(query=None, codecs=[],
         for tag in tags:
             media = media.filter(Media.tags.any(tag_id=tag))
 
-    if mime:
-        media = media.filter(Media.mimetype == mime)
+    if len(mime) > 0:
+        f = Media.mimetype == mime[0]
+
+        if len(mime) > 1:
+            for m in mime[1:]:
+                f = f | (Media.mimetype == m)
+
+        media = media.filter(f)
+
 
     media = media.order_by(order_by)
 
