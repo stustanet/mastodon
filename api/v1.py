@@ -81,10 +81,7 @@ def do_search(args):
 
     codecs = []
     for codec in args["codecs"]:
-        if "," in codec:
-            codecs.extend(codec.split(","))
-        else:
-            codecs.append(codec)
+        codecs.append(codec.split(","))
 
     return search_media(query=args["q"], codecs=codecs, mime=args["mime"],
         width=args["width"], height=args["height"], category=args["category"],
