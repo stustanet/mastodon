@@ -148,7 +148,7 @@ class Media(db.Model):
         mediainfo_for_api = {
             "media_id": self.media_id,
             "path": self.path,
-            "url": urllib.parse.urljoin(baseurl, urllib.parse.quote(self.path))
+            "url": urllib.parse.urljoin(baseurl, urllib.parse.quote(self.path)),
             "duration": None,
             "streams": [],
             "category": self.category.name,
