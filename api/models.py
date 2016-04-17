@@ -102,7 +102,6 @@ class Category(db.Model):
 
     category_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, unique=True, nullable=False)
-    media = relationship("Media", back_populates="category")
 
 
 class Tag(db.Model):
@@ -122,18 +121,19 @@ class Media(db.Model):
     media_id = db.Column(db.Integer, primary_key=True)
     path = db.Column(db.Text, nullable=False, unique=True)
     mediainfo = db.Column(postgresql.JSONB, nullable=False)
-    lastModified = db.Column(db.Integer,
-                             # Last modified from filesystem (unix epoch)
-                             nullable=False)
+    lastModified = db.Column(db.Numeric(scale=6, asdecimal=False), nullable=False)
     mimetype = db.Column(db.Text, nullable=False)
-    timeLastIndexed = db.Column(db.Integer, nullable=False)
-    sha = db.Column(db.Binary(length=32), nullable=False)
+    timeLastIndexed = db.Column(db.Numeric(scale=7, asdecimal=False), nullable=False)
+    sha = db.Column(db.LargeBinary(length=32), nullable=False)
+
+    # TODO/FIXME: One metadata for all files with same SHA
+    meta = db.Column(postgresql.JSONB, nullable=False, default={})
 
     # media requires a category
     category_id = Column(db.Integer,
                          ForeignKey("category.category_id"),
                          nullable=False)
-    category = relationship("Category", back_populates="media")
+    category = relationship("Category")
 
     tags = relationship("Tag",
                         secondary=tag_media_association_table,
@@ -158,7 +158,9 @@ class Media(db.Model):
             "last_indexed": self.timeLastIndexed,
             "sha": hex_sha,
             "raw_mediainfo" : None,
-            "thumbnail": ""
+            "thumbnail": "",
+            "metadata": self.meta
+
         }
 
         mediainfo_for_api["thumbnail"] = urllib.parse.urljoin(THUMBNAIL_ROOT_URL, hex_sha+".jpg")

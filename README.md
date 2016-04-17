@@ -10,7 +10,7 @@ How do I run this?
 
 * Next install flask and necessary extensions with:
 
-`venv/bin/pip install flask flask-sqlalchemy flask-flatpages flask-wtf sqlalchemy-migrate psycopg2 flask-testing flask-restful`
+`venv/bin/pip install flask flask-sqlalchemy flask-flatpages flask-wtf sqlalchemy-migrate psycopg2 flask-testing flask-restful flask-cors guessit mutagen`
 
 * Fill in your configuration details in config.py (copy it from [config_template.py](config_template.py))
 
