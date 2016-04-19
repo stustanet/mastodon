@@ -248,15 +248,50 @@ def get_metadata(path, category):
 
     return metadata
 
-# metadata is stored twice: the metadata dervice by get_metadata and the "overrides" by users
-# this way when the get_metadata is run at a later time and there is new metadata
-# the user entered metadata can take precedence. just the values which weren't overriden by users will be updated/added
+# besides the metadata store if the metadata was aquired automatically or entered on the frontend
+# for a metadata dict of {"a": {"b": "foo"}} the meta field in the DB looks like
+# {"entered_by_user": {"a": {"b": True/False}}, "data": {"a": {"b": "foo"}}}
 def merge_metadata(current, new):
-    # Hmm, I imaged this to need more logic...
-    r = {"from_file": new}
-    if current and "user" in current:
-        r["user"] = current["user"]
-    return r
+    entered_by = {}
+    current_data = {}
+
+    if "entered_by_user" in current:
+        entered_by = current["entered_by_user"]
+
+    if "data" in current:
+        current_data = current["data"]
+
+
+    def was_entered_by_user(key, lookup):
+        if not key in lookup:
+            return False
+        else:
+            return lookup[key]
+
+    # takes two dicts
+    def recursive_merge(current, new, entered_by):
+        for key, value in new.items():
+            if type(value) is not dict:
+                if not was_entered_by_user(key, entered_by):
+                    entered_by[key] = False
+                    current[key] = value
+
+            else:
+                current_value = {}
+                current_entered_by = {}
+                if key in current:
+                    current_value = current[key]
+                if key in entered_by:
+                    current_entered_by = entered_by[key]
+
+                e, d = recursive_merge(current_value, value, current_entered_by)
+                current[key] = d
+                entered_by[key] = e
+
+        return entered_by, current
+
+    new_entered_by, new_data = recursive_merge(current_data, new, entered_by)
+    return {"entered_by_user": new_entered_by, "data": new_data}
 
 
 def mediainfo_thumb_metadata(m):
@@ -279,7 +314,7 @@ def mediainfo_thumb_metadata(m):
     else:
         category = categorize(m.path, m.mimetype, duration)
 
-    metadata = merge_metadata(m.meta, get_metadata(m.path, category))
+    metadata = merge_metadata(m.meta or {}, get_metadata(m.path, category))
 
     return (mediainfo, metadata)
 
@@ -415,7 +450,7 @@ def metadata():
         print("{}/{}".format(i, c))
 
         metadata = get_metadata(m.path, m.category.name)
-        m.metadata = merge_metadata(m.metadata, metadata)
+        m.meta = merge_metadata(m.meta or {}, metadata)
         db.session.add(m)
 
         i = i + 1
