@@ -8,7 +8,9 @@ from config import URL_TO_MOUNT, THUMBNAIL_ROOT_URL
 import binascii
 import videoinfo
 import logging
+import os
 from flask import jsonify, url_for
+
 
 tag_media_association_table = db.Table('tag_media',
                                        db.metadata,
@@ -185,6 +187,9 @@ class Media(db.Model):
            self.mediainfo["format"]["tags"]:
             mediainfo_for_api["title"] = \
               self.mediainfo["format"]["tags"]["title"]
+        else:
+            mediainfo_for_api["title"] = \
+              os.path.splitext(os.path.basename(os.path.normpath(self.path)))[0]
 
         if "streams" in self.mediainfo:
             for stream in self.mediainfo["streams"]:
