@@ -153,14 +153,12 @@ class Media(db.Model):
     def api_fields(self, include_raw_mediainfo=False):
         hex_sha = binascii.hexlify(self.sha).decode("ascii")
         tags = [tag.name for tag in self.tags]
-        baseurl = urllib.parse.urljoin(URL_TO_MOUNT,
-                                       urllib.parse.quote("/files/"))
 
         mediainfo_for_api = {
             "title": None,
             "media_id": self.media_id,
             "path": self.path,
-            "url": urllib.parse.urljoin(baseurl,
+            "url": urllib.parse.urljoin(URL_TO_MOUNT,
                                         urllib.parse.quote(self.path)),
             "duration": None,
             "streams": [],
