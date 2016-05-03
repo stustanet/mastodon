@@ -17,7 +17,8 @@ tag_media_association_table = db.Table('tag_media',
                                               db.ForeignKey('tag.tag_id')),
                                        Column('media_id',
                                               db.Integer,
-                                              db.ForeignKey('media.media_id', ondelete="cascade")))
+                                              db.ForeignKey('media.media_id',
+                                                            ondelete="cascade")))
 
 # These queries search in the mediainfo JSON which looks like this
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
@@ -26,8 +27,12 @@ tag_media_association_table = db.Table('tag_media',
 #
 # Beware: Super duper hack!
 #
-# TODO/FIXME: There is some way to construct these queries using the sqlalchemy query builder
-# There just seems no good documentation (besides this - https://bitbucket.org/zzzeek/sqlalchemy/issues/3566/figure-out-how-to-support-all-of-pgs#comment-22842678)
+# TODO/FIXME: There is some way to construct these queries using the
+# sqlalchemy query builder
+# There just seems no good documentation (besides this -
+# https://bitbucket.org/zzzeek/sqlalchemy/issues/3566/figure-out-how-to-support-all-of-pgs#comment-22842678)
+
+
 def filter_multiple_codecs_and(codecs, i=0):
     parameters = []
     queries = []
@@ -36,7 +41,8 @@ def filter_multiple_codecs_and(codecs, i=0):
         i = i + 1
 
         # No, there is no obvious SQL injection possible here
-        # The format is just to include a parameter for sqlalchemy with variable name
+        # The format is just to include a parameter for sqlalchemy with
+        # variable name
         # ...
         queries.append("""\
             (SELECT COUNT(1)
@@ -52,20 +58,26 @@ def filter_multiple_codecs_and(codecs, i=0):
 
     return (" AND ".join(queries), parameters)
 
+
 # Takes a lists of lists, applies filter_multiple_codecs_and
 # on each lists and joins the output of each list with an OR
-# example [["h264", "aac"], ["vp8"]] ==> (*codec_is* h264 AND *codec_is* aac) OR (*codec_is* vp8)
+# example [["h264", "aac"], ["vp8"]] ==> (*codec_is* h264 AND *codec_is* aac)
+# OR (*codec_is* vp8)
 def filter_multiple_codecs_or(codecs):
-    # filter_multiple_codecs_and doesn't return the sqlalchemy.text(string, parameters)
-    # version but the string and parameters seperately so they can be joined by OR's here easily
+    # filter_multiple_codecs_and doesn't return the sqlalchemy.text(string,
+    #                                                               parameters)
+    # version but the string and parameters seperately so they can be joined
+    # by OR's here easily
     # thats why filter_multiple_codecs_and needs an optional argument,
-    # the index from where to start naming parameters from to prevent collisions
+    # the index from where to start naming parameters from to prevent
+    # collisions
     i = 0
     and_queries = []
 
     # the text function from sqlalchemy expects bindparams to be
     # a list of objects returned by the bindparam function
-    # filter_multiple_codecs_and returns such a list so we just need to join the lists here
+    # filter_multiple_codecs_and returns such a list so we just need to join
+    # the lists here
     parameters = []
     for and_codecs in codecs:
         (query, params) = filter_multiple_codecs_and(and_codecs, i=i)
@@ -75,11 +87,7 @@ def filter_multiple_codecs_or(codecs):
         # filter_multiple_codecs_and used len(params) parameters
         i = i + len(params)
 
-
     return text(" OR ".join(and_queries), bindparams=parameters)
-
-
-
 
 
 filter_width_greater_equals = """\
@@ -143,12 +151,15 @@ class Media(db.Model):
     def api_fields(self, include_raw_mediainfo=False):
         hex_sha = binascii.hexlify(self.sha).decode("ascii")
         tags = [tag.name for tag in self.tags]
-        baseurl = urllib.parse.urljoin(URL_TO_MOUNT, urllib.parse.quote("/files/"))
+        baseurl = urllib.parse.urljoin(URL_TO_MOUNT,
+                                       urllib.parse.quote("/files/"))
 
         mediainfo_for_api = {
+            "title": None,
             "media_id": self.media_id,
             "path": self.path,
-            "url": urllib.parse.urljoin(baseurl, urllib.parse.quote(self.path)),
+            "url": urllib.parse.urljoin(baseurl,
+                                        urllib.parse.quote(self.path)),
             "duration": None,
             "streams": [],
             "category": self.category.name,
@@ -157,16 +168,23 @@ class Media(db.Model):
             "last_modified": self.lastModified,
             "last_indexed": self.timeLastIndexed,
             "sha": hex_sha,
-            "raw_mediainfo" : None,
+            "raw_mediainfo": None,
             "thumbnail": ""
         }
 
-        mediainfo_for_api["thumbnail"] = urllib.parse.urljoin(THUMBNAIL_ROOT_URL, hex_sha+".jpg")
+        mediainfo_for_api["thumbnail"] = \
+            urllib.parse.urljoin(THUMBNAIL_ROOT_URL, hex_sha+".jpg")
 
-
-        if "format" in self.mediainfo and "duration" in self.mediainfo["format"]:
+        if "format" in self.mediainfo and "duration" in \
+           self.mediainfo["format"]:
             mediainfo_for_api["duration"] = \
               float(self.mediainfo["format"]["duration"])
+
+        if "format" in self.mediainfo and "tags" in \
+           self.mediainfo["format"] and "title" in \
+           self.mediainfo["format"]["tags"]:
+            mediainfo_for_api["title"] = \
+              self.mediainfo["format"]["tags"]["title"]
 
         if "streams" in self.mediainfo:
             for stream in self.mediainfo["streams"]:
@@ -187,7 +205,6 @@ class Media(db.Model):
 
         if include_raw_mediainfo:
             mediainfo_for_api["raw_mediainfo"] = self.mediainfo
-
 
         return mediainfo_for_api
 
@@ -214,7 +231,8 @@ def get_or_create_tag(name):
 # the outer list means OR and the inner list means AND
 def search_media(query=None, codecs=[],
                  width=None, height=None, category=None, mime=[],
-                 tags=None, order_by=Media.path.asc(), sha=None, offset=0, limit=20):
+                 tags=None, order_by=Media.path.asc(), sha=None,
+                 offset=0, limit=20):
     media = Media.query
 
     if query:
@@ -249,7 +267,6 @@ def search_media(query=None, codecs=[],
                 f = f | (Media.mimetype == m)
 
         media = media.filter(f)
-
 
     media = media.order_by(order_by)
 
