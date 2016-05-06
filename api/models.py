@@ -169,7 +169,8 @@ class Media(db.Model):
             "last_indexed": self.timeLastIndexed,
             "sha": hex_sha,
             "raw_mediainfo": None,
-            "thumbnail": ""
+            "thumbnail": "",
+            "size": None
         }
 
         mediainfo_for_api["thumbnail"] = \
@@ -179,6 +180,11 @@ class Media(db.Model):
            self.mediainfo["format"]:
             mediainfo_for_api["duration"] = \
               float(self.mediainfo["format"]["duration"])
+
+        if "format" in self.mediainfo and "size" in \
+           self.mediainfo["format"]:
+            mediainfo_for_api["size"] = \
+              float(self.mediainfo["format"]["size"])
 
         if "format" in self.mediainfo and "tags" in \
            self.mediainfo["format"] and "title" in \

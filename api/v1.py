@@ -77,8 +77,6 @@ def do_search(args):
     if args["height"] != None and args["height"] < 0:
         return "negative height"
 
-
-
     codecs = []
     for codec in args["codecs"]:
         codecs.append(codec.split(","))
@@ -93,7 +91,6 @@ def do_search(args):
 def doc():
     with open(os.path.join(basedir, "api/static/docs.txt"), "r") as f:
         return Response(f.read(), content_type='text')
-
 
 
 @v1.route('/search', methods=["GET"])
@@ -118,7 +115,6 @@ def mediaById(media_id):
     medium = Media.query.filter_by(media_id=media_id).first_or_404()
     json = jsonify(**medium.api_fields(include_raw_mediainfo=True))
     return json
-
 
 
 @v1.route("/media/<int:media_id>/tag/<tag_name>", methods=["POST", "DELETE"])
@@ -161,7 +157,6 @@ def categoryById(category):
         return "Bad Request: " + result, 400
 
     (count, media) = result
-
 
     json = jsonify(total=count, media=[medium.api_fields() for medium in media])
     return json
