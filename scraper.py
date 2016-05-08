@@ -38,7 +38,7 @@ def get_files():
             if full_mime:
                 mime = full_mime.split("/")[0]
 
-            if mime in ["video", "audio", "image"]:
+            if mime in ["video", "audio", "image", "text"]:
                 filepath = os.path.join(root, filename)
                 try:
                     lastModified = os.path.getmtime(filepath)
