@@ -45,15 +45,8 @@ def do_search(args):
             else:
                 return jsonify(media=[])
 
-    order_by = None
-    if args["order_by"] == "name_asc":
-        order_by = Media.path.asc()
-    elif args["order_by"] == "name_desc":
-        order_by = Media.path.desc()
-    elif args["order_by"] == "indexed_asc":
-        order_by = Media.timeLastIndexed.asc()
-    elif args["order_by"] == "indexed_desc":
-        order_by = Media.timeLastIndexed.desc()
+    if "order_by" in args and args["order_by"] not in ["name_asc", "name_desc", "indexed_asc", "indexed_desc"]:
+        return "unknown order"
 
     sha = None
     if args["sha"]:
@@ -85,7 +78,7 @@ def do_search(args):
 
     return search_media(query=args["q"], codecs=codecs, mime=args["mime"],
         width=args["width"], height=args["height"], category=args["category"],
-        tags=tags, order_by=order_by, sha=sha, limit=limit, offset=args["offset"])
+        tags=tags, order_by=args["order_by"], sha=sha, limit=limit, offset=args["offset"])
 
 
 

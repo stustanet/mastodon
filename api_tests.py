@@ -133,7 +133,7 @@ class ModelTestCase(TestCase):
 
         # Check that basic querying + ordering works
         assert search_media(query="Breaking Bad")[1] == [medias[3], medias[1], medias[2]]
-        assert search_media(query="Breaking Bad", order_by=Media.path.desc())[1] == [medias[2], medias[1], medias[3]]
+        assert search_media(query="Breaking Bad", order_by="name_desc") == [medias[2], medias[1], medias[3]]
 
         # Check that searching by category works
         assert search_media(query="Breaking Bad", category=category1.category_id)[1] == [medias[1], medias[2]]

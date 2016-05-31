@@ -1,7 +1,7 @@
 from api import db
 from sqlalchemy.dialects import postgresql
-from sqlalchemy import ForeignKey, Column, text
-from sqlalchemy.orm import relationship
+from sqlalchemy import ForeignKey, Column, text, func
+from sqlalchemy.orm import relationship, aliased
 from sqlalchemy.sql.expression import bindparam
 import urllib
 from config import URL_TO_MOUNT, THUMBNAIL_ROOT_URL
@@ -78,7 +78,38 @@ def filter_multiple_codecs_or(codecs):
 
     return text(" OR ".join(and_queries), bindparams=parameters)
 
+# This joins the fields <fields> in the metadata->data JSON object and splits the words
+# This data can then be queried like usual by just doing a Query(split_metadata_words) or select_from()
+def split_metadata_words(fields=["artist", "album", "title"]):
+    s = []
 
+    if len(fields) > 1:
+        for field in fields[1:]:
+            s.append(func.coalesce(func.jsonb_extract_path_text(Media.meta, "data", field)))
+
+    return func.regexp_split_to_table(func.nullif(func.regexp_replace(func.concat(*s), "\s+", " "), " "), "\s").alias("words")
+
+# media_search does two selects when including metadata into the result
+# first only those with matching metadata (see query in search_metadata_from)
+# then as usual all those with matching path. we need to exclude those with metadata
+def filter_only_without_metadata(fields=["artist", "album", "title"]):
+    # ?| operator: does the object contain any of these keys?
+    s = "NOT meta ? 'data' OR NOT (meta -> 'data') ?| array["
+    s = s + ",".join(["'{}'".format(field) for field in fields])
+    s = s + "]"
+    return text(s)
+
+
+def filter_words_in(words):
+    s = "words in ("
+    ws = []
+
+    i = 0
+    for w in words:
+        ws.append("':{}'".format(param_name))
+        i = i + 1
+
+    s = s + ")"
 
 
 
@@ -211,37 +242,130 @@ def get_or_create_tag(name):
         db.session.commit()
     return r
 
+def search_metadata_media(fields=["album", "title", "artist"]):
+    s = []
+
+    if len(fields) > 1:
+        for field in fields[1:]:
+            s.append(func.coalesce(func.jsonb_extract_path_text(Media.meta, "data", field)))
+
+    t = func.regexp_split_to_table(func.nullif(func.regexp_replace(func.concat(*s), "\s+", " "), " "), "\s").alias("word")
+
+    return Media.query.select_from(t).group_by("media_id").add_column("count(word) as score").all()
 
 # both codecs and mime are lists of lists
 # the outer list means OR and the inner list means AND
-def search_media(query=None, codecs=[],
+def search_media(query=None, codecs=[], search_meta=False, metadata_fields=["album", "artist", "title"],
                  width=None, height=None, category=None, mime=[],
-                 tags=None, order_by=Media.path.asc(), sha=None, offset=0, limit=20):
-    media = Media.query
+                 tags=None, order_by="name_asc", sha=None, offset=0, limit=20):
+
+    metadata_words = split_metadata_words(metadata_fields)
+
+    # This needs an explanation:
+    # This query consists of two subqueries which then get joined by UNION: one to fetch all media with matching metadata and one to fetch all
+    # media which don't have metadata at all but with matching path
+    # Those who have metadata receive a score which is just the number of words in all metadata fields matching the query words
+    # We want the result to be
+    # - Media with metadata first, ORDERED BY score DESC (to have the best matching media first)
+    # - All media without metadata
+    #   The user can decide how to sort this second *block* of results (path asc/desc, timeLastIndexed asc/desc)
+    #   The results with metadata should always appear on top
+    # We can achieve this by giving all the media wihtout metadata a score of 0 and then sort by score DESC
+    # In order to let the user sort the second block of results we need a second ORDER BY
+    # To make sure that the media with metadata always appear on top we sort by a custom column ord which for the media
+    # without metadata is just the timeLastIndexed or path column, depending on the setting
+    # for the media with metadata this ord column it is set to a constant which (should) have the effect of those results appear on top
+    # path ASC -> "a"
+    # path DESC -> "z"
+    # time ASC -> -INFINITY
+    # tie DESC -> INFINITY
+    meta_ord = None
+    non_meta_ord = None
+    ord_order = None
+
+    normal_query_order = None
+
+    if order_by == "name_asc":
+        meta_ord = "'a'"
+        non_meta_ord = '"path"'
+        ord_order = "ASC"
+        normal_query_order = Media.path.asc()
+    elif order_by == "name_desc":
+        meta_ord = "'z'"
+        non_meta_ord = '"path"'
+        ord_order = "DESC"
+        normal_query_order = Media.path.desc()
+    elif order_by == "indexed_asc":
+        meta_ord = "'-Infinity'::float8"
+        non_meta_ord = '"timeLastIndexed"'
+        ord_order = "ASC"
+        normal_query_order = Media.timeLastIndexed.asc()
+    elif order_by == "indexed_desc":
+        meta_ord = "'Infinity'::float8"
+        non_meta_ord = '"timeLastIndexed"'
+        ord_order = "DESC"
+        normal_query_order = Media.timeLastIndexed.desc()
+
+    path_filter = None
+    if query:
+        words = query.split()
+
+        if len(words) > 0:
+            path_filter = Media.path.ilike("%{}%".format(words[0]))
+
+            if len(words) > 1:
+                for word in words[1:]:
+                    path_filter = path_filter & Media.path.ilike("%{}%".format(word))
+
+    meta_q = Media.query.select_from(metadata_words)
+    meta_q = meta_q.add_column("count(words) as score").add_column(meta_ord + " as ord")
+    meta_q = meta_q.filter(filter_words_in(query.split())).group_by("media_id")
+
+    non_meta_q = Media.query.add_column("0 as score").add_column(non_meta_ord + " as ord")
+    non_meta_q = non_meta_q.filter(filter_only_without_metadata(metadata_words)).filter(path_filter)
+
+    q = None
+    if search_meta:
+        # Just do a normal query
+        q = Media.query
+        # we have to apply path filter here because it doesn't apply to meta_q
+        # everything else does
+        q.order_by(normal_query_order).filter(path_filter)
+
+    else:
+        q = meta_q.union(non_meta_q)
 
     if query:
-        for word in query.split():
-            media = media.filter(Media.path.ilike("%{}%".format(word)))
+        words = query.split()
 
-    media = media.filter(filter_multiple_codecs_or(codecs))
+        if len(words) > 0:
+            path_query = Media.path.ilike("%{}%".format(words[0]))
+
+            if len(words) > 1:
+                for word in words[1:]:
+                    path_query = path_query & Media.path.ilike("%{}%".format(word))
+
+            q = q.filter(path_query)
+
+    q = q.filter(filter_multiple_codecs_or(codecs))
 
     if width:
-        media = media.filter(text(filter_width_greater_equals,
+        q = q.filter(text(filter_width_greater_equals,
                                   bindparams=[bindparam("width", width)]))
 
     if height:
-        media = media.filter(text(filter_height_greater_equals,
+        q = q.filter(text(filter_height_greater_equals,
                                   bindparams=[bindparam("height", height)]))
 
     if category:
-        media = media.filter(Media.category_id == category)
+        q = q.filter(Media.category_id == category)
 
     if sha:
-        media = media.filter(Media.sha == sha)
+        q = q.filter(Media.sha == sha)
 
     if tags:
         for tag in tags:
-            media = media.filter(Media.tags.any(tag_id=tag))
+            q = q.filter(Media.tags.any(tag_id=tag))
 
     if len(mime) > 0:
         f = Media.mimetype == mime[0]
@@ -250,11 +374,11 @@ def search_media(query=None, codecs=[],
             for m in mime[1:]:
                 f = f | (Media.mimetype == m)
 
-        media = media.filter(f)
+        q = q.filter(f)
 
 
-    media = media.order_by(order_by)
+    count = q.count()
 
-    count = media.count()
+    return (count, q.limit(limit).offset(offset).all())
 
-    return (count, media.limit(limit).offset(offset).all())
+
