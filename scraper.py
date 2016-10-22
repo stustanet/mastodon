@@ -15,46 +15,8 @@ import re
 import videoinfo
 import logging
 import traceback
-from multiprocessing import Process, cpu_count, Queue
 
-
-def get_files():
-    """\
-    returns a list of tuples of filename, mimetype and last modified date of all relevant files in root directory
-    """
-
-    last_update = 0
-    l = 0
-
-    lis = []
-
-    search_path = os.path.join(PATH_TO_MOUNT, INDEX_FOLDER)
-    logging.debug("search_path: {}".format(search_path))
-    for root, dirs, files in os.walk(search_path):
-        for filename in files:
-            (full_mime, encoding) = mimetypes.guess_type(filename)
-            mime = None
-
-            if full_mime:
-                mime = full_mime.split("/")[0]
-
-            if mime in ["video", "audio", "image", "text"]:
-                filepath = os.path.join(root, filename)
-                try:
-                    lastModified = os.path.getmtime(filepath)
-                    lis.append((os.path.relpath(filepath, PATH_TO_MOUNT), full_mime, int(lastModified)))
-                    l = l + 1
-
-                    if time.time() - last_update > 5:
-                        last_update = time.time()
-                        logging.info("Getting files in FS: {}".format(l))
-
-                except os.error as err:
-                    msg = "Error when accessing file '{}' in folder '{}':".format(filename, root)
-                    logging.error(msg)
-
-    return lis
-
+NO_OF_FILES_TO_INDEX = 1000
 
 def get_files_in_db():
     """\
@@ -69,45 +31,12 @@ def get_files_in_db():
 
     return lis
 
-
-def get_deltas(database_files, filesystem_files):
-    """\
-    takes a list of all files currently indexed and a list of all files available in the filesystem_filesystem
-    returns two lists one with files to create/update in the db and one with files to be deleted from the db
-    """
-    # extract all paths for easy matching in the for loops
-    database_paths = [relativePath for (relativePath, _, _) in database_files]
-    filesystem_paths = [relativePath for (relativePath, _, _) in filesystem_files]
-
-    to_upsert = []
-    to_delete = []
-
-    for f in database_files:
-        (relativePath, _, _) = f
-        # relativePath is indexed in db but no longer available in FS
-        if relativePath not in filesystem_paths:
-            to_delete.append(f)
-
+def get_not_in_db(filesystem_files):
+    lis = []
     for f in filesystem_files:
-        (relativePath, mime, currentLastModified) = f
-        # file in FS which is not indexed at all
-        if relativePath not in database_paths:
-            to_upsert.append(f)
-        # file is already in database, check if it needs to be updated
-        else:
-            # get info about indexed file to check wether it has changed
-            dbF = [f for f in database_files if f[0] == relativePath][0]
-            indexedLastModifed = dbF[2]
-
-            if indexedLastModifed != currentLastModified:
-                # a indexed file that should be updated in the DB is first deleted then
-                # added as if it was never indexed. just adding it to "to_delete" here makes the logic in main
-                # very simple
-                to_delete.append(dbF)
-                to_upsert.append(f)
-
-    return (to_upsert, to_delete)
-
+        if not Media.query.filter(Media.path == f[0]).first():
+            lis.append(f)
+    return lis
 
 def hashfile(afile, hasher, blocksize=65536):
     buf = afile.read(blocksize)
@@ -145,7 +74,7 @@ def categorize(path, mime, duration):
 
     return category
 
-def index_medium(queue, relativePath, mime, lastModified):
+def index_medium(relativePath, mime, lastModified):
     """\
     Takes three arguments path, mime, lsatModified(directly from get_deltas)
     And does all operations to index the medium:
@@ -157,8 +86,7 @@ def index_medium(queue, relativePath, mime, lastModified):
 
     logging.info("Indexing {}".format(relativePath))
 
-    # get a custom instance of db
-    #from api import db
+    # get a custom instance of db #from api import db
 
     path = os.path.join(PATH_TO_MOUNT, relativePath)
 
@@ -168,100 +96,59 @@ def index_medium(queue, relativePath, mime, lastModified):
     duration = 0
     if "format" in mediainfo and "duration" in mediainfo["format"]:
         duration = float(mediainfo["format"]["duration"])
+    category = categorize(relativePath, mime, duration)
 
     m = Media(
         path=relativePath,
         mediainfo=mediainfo,
         lastModified=lastModified,
+        category=get_or_create_category(category),
         mimetype=mime,
         timeLastIndexed=int(time.time()),
         sha=sha)
 
-    queue.put((m, categorize(relativePath, mime, duration)))
+    return m
 
-    if mime.startswith("video"):
-        try :
-             thumbs.generateThumb(binascii.hexlify(m.sha).decode(), os.path.join(PATH_TO_MOUNT, m.path))
-        except:
-            logging.warning("Error generating thumb: {}".format(sys.exc_info()))
-
-    logging.info("Finished indexing {}".format(relativePath))
-
-# This runs in a seperate process
-# It should be very safe from crashing
-# The main process depends on this process sending a None to the queue
-# (Yeah, this is probably pretty bad)
-def index_media(queue, media):
-    for (relativePath, mime, lastModified) in media:
-        try:
-            index_medium(queue, relativePath, mime, lastModified)
-        except:
-            logging.warning("Error indexing medium: {}".format(sys.exc_info()))
-            traceback.print_exc()
-            break
-
-    queue.put(None)
-
+def hash_and_add(filesystem_files):
+    new_files = get_not_in_db(filesystem_files)
+    for f, mime, lm  in new_files:
+        m = index_medium(f, mime, lm)
+        db.session.add(m)
+        db.session.commit()
 
 def main():
+    # Collect files until NO_OF_FILES_TO_INDEX reached
+    # then check if in DB, if not index
     logging.basicConfig(level=logging.DEBUG)
+    lis = []
+    search_path = os.path.join(PATH_TO_MOUNT, INDEX_FOLDER)
+    logging.debug("search_path: {}".format(search_path))
+    counter = 0
+    for root, dirs, files in os.walk(search_path):
+        for filename in files:
+            (full_mime, encoding) = mimetypes.guess_type(filename)
+            mime = None
 
-    logging.info("Scraper started.")
-    logging.info("Getting files in DB.")
-    database_files = get_files_in_db()
-    logging.info("Files in DB: {}".format(len(database_files)))
+            if full_mime:
+                mime = full_mime.split("/")[0]
 
-    filesystem_files = get_files()
-    logging.info("Getting files in FS: {}".format(len(filesystem_files)))
+            if mime in ["video", "audio", "image", "text"]:
+                filepath = os.path.join(root, filename)
+                try:
+                    lastModified = os.path.getmtime(filepath)
+                    lis.append((os.path.relpath(filepath, PATH_TO_MOUNT), full_mime, int(lastModified)))
+                    if len(lis) % NO_OF_FILES_TO_INDEX == 0:
+                        logging.info("Checking files {}-{}".format(counter * NO_OF_FILES_TO_INDEX, (counter + 1) * NO_OF_FILES_TO_INDEX))
+                        logging.info("Last file: {}".format(filepath))
+                        hash_and_add(lis)
+                        lis = []
+                        counter = counter + 1
 
-    (to_upsert, to_delete) = get_deltas(database_files, filesystem_files)
-
-    logging.info("{} to update/insert, {} to delete".format(len(to_upsert), len(to_delete)))
-
-    for (relativePath, _, _) in to_delete:
-        Media.query.filter_by(path=relativePath)
-
-
-    num_to_upsert = len(to_upsert)
-    partial_lists = []
-    num_cpus = cpu_count()
-
-    for cpu in range(num_cpus):
-        i = cpu
-        partial_list = []
-        while i < num_to_upsert:
-            partial_list.append(to_upsert[i])
-            i += num_cpus
-        partial_lists.append(partial_list)
-
-
-    queue = Queue()
-    processes = []
-    for cpu in range(num_cpus):
-        p = Process(target=index_media, args=(queue, partial_lists[cpu],))
-        p.start()
-        processes.append(p)
-
-    # The db is only on the main process
-    # It receives stuff to insert via a queue
-    # It also counts the number of workers finished
-    workers_finished = 0
-    while True:
-        m = queue.get()
-        if m:
-            (medium, category) = m
-
-            medium.category = get_or_create_category(category)
-
-            db.session.add(medium)
-            db.session.commit()
-        else:
-            workers_finished = workers_finished + 1
-            if workers_finished == len(processes):
-                logging.info("Worker finished")
-                break
-
-    db.session.commit()
+                except os.error as err:
+                    msg = "Error when accessing file '{}' in folder '{}':".format(filename, root)
+                    logging.error(msg)
+    hash_and_add(lis)
 
 if __name__ == "__main__":
     main()
+
