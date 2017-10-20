@@ -31,12 +31,12 @@ class Operation:
         pass
 
 
-def process_element(self):
+def process_element():
     op = Operation(r.lpop("pending"))
     op.operate()
 
 
-def process_queue(self):
+def process_queue():
     while True:
         process_element()
 
