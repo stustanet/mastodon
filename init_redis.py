@@ -1,4 +1,5 @@
 import logging
+from config import PATH_TO_MOUNT, INDEX_FOLDER
 import redis
 import os
 
@@ -6,7 +7,7 @@ import os
 r = redis.Redis()
 
 
-def get_files(search_path):
+def add_files(search_path):
     logging.debug("search_path: {}".format(search_path))
 
     # Iterate Directories
@@ -21,8 +22,10 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
 
     logging.info("Scraper started.")
-    get_files()
 
+    # Add files in INDEX_FOLDERs to redis list
+    for folder in INDEX_FOLDER:
+        add_files(os.path.join(PATH_TO_MOUNT, folder))
 
 if __name__ == "__main__":
     main()
