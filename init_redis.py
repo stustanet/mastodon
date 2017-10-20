@@ -16,7 +16,7 @@ def add_files(search_path):
         for filename in files:
 
             # Push all files to "pending list"
-            r.lpush("pending", pickle.dumps(filename, "INIT"))
+            r.lpush("pending", pickle.dumps((filename, "INIT")))
 
 
 def main():
