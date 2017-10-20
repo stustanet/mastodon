@@ -38,11 +38,10 @@ class Operation:
 
 def process_element():
     res = r.rpop("pending")
-    if res is None:
+    if res is not None:
         obj = pickle.loads(res)
         op = Operation(*obj)
         op.operate()
-
 
 
 def process_queue():
