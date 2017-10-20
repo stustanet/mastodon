@@ -32,11 +32,13 @@ class Operation:
     def op_move(self):
         pass
 
+    def op_rename(self):
+        pass
+
 
 def process_element():
-    el = r.rpop("pending")
-    print(el)
-    op = Operation(pickle.loads(el))
+    bytestr = r.rpop("pending")
+    op = Operation(*pickle.loads(bytestr))
     op.operate()
 
 
