@@ -35,6 +35,7 @@ class Operation:
 
 def process_element():
     el = r.rpop("pending")
+    print(el)
     op = Operation(pickle.loads(el))
     op.operate()
 
