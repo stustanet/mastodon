@@ -4,9 +4,10 @@ import logging
 
 r = redis.Redis(host=REDIS_HOST)
 
+
 class Operation:
 
-    def _init_(self, path, operation):
+    def __init__(self, path, operation):
         self.path = path
         self.operation = operation
         self.operations = {
@@ -32,7 +33,8 @@ class Operation:
 
 
 def process_element():
-    op = Operation(r.lpop("pending"))
+    el = r.rpop("pending")
+    op = Operation(*el)
     op.operate()
 
 
