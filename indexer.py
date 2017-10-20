@@ -1,6 +1,7 @@
 import redis
 from config import REDIS_HOST
 import logging
+import pickle
 
 r = redis.Redis(host=REDIS_HOST)
 
@@ -34,7 +35,7 @@ class Operation:
 
 def process_element():
     el = r.rpop("pending")
-    op = Operation(*el)
+    op = Operation(pickle.loads(el))
     op.operate()
 
 

@@ -2,6 +2,7 @@ import logging
 from config import PATH_TO_MOUNT, INDEX_FOLDER
 import redis
 import os
+import pickle
 
 # Initialize Redis connection
 r = redis.Redis()
@@ -15,7 +16,7 @@ def add_files(search_path):
         for filename in files:
 
             # Push all files to "pending list"
-            r.lpush("pending", (filename, "INIT"))
+            r.lpush("pending", pickle.dumps(filename, "INIT"))
 
 
 def main():
