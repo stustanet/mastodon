@@ -37,8 +37,8 @@ class Operation:
 
 
 def process_element():
-    bytestr = r.rpop("pending")
-    op = Operation(*pickle.loads(bytestr))
+    obj = pickle.loads(r.rpop("pending"))
+    op = Operation(*obj)
     op.operate()
 
 
