@@ -50,5 +50,5 @@ def process_queue():
 
 
 if __name__ == "__main__":
-    logging.basicConfig()
+    logging.basicConfig(level=logging.DEBUG)
     process_queue()
