@@ -19,7 +19,7 @@ class Operation:
         }
 
     def operate(self):
-        logging.debug("operation init: {} {}".format(self.path, self.operation))
+        logging.debug("operation: {} {}".format(self.path, self.operation))
         self.operations[self.operation]()
 
     # INOTIFY operation handlers
@@ -51,4 +51,5 @@ def process_queue():
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
     process_queue()
