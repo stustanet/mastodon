@@ -19,7 +19,7 @@ class Operation:
         }
 
     def operate(self):
-        logging.debug("operation init: {}".format(self.path))
+        logging.debug("operation init: {} {}".format(self.path, self.operation))
         self.operations[self.operation]()
 
     # INOTIFY operation handlers

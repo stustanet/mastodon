@@ -9,7 +9,7 @@ r = redis.Redis()
 
 
 def add_files(search_path):
-    logging.debug("search_path: {}".format(search_path))
+    print("search_path: {}".format(search_path))
 
     # Iterate Directories
     for root, dirs, files in os.walk(search_path):
