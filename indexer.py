@@ -1,8 +1,8 @@
 import redis
 from config import REDIS_HOST
+import logging
 
-r = redis.Redis(host='REDIS_HOST')
-
+r = redis.Redis(host=REDIS_HOST)
 
 class Operation:
 
@@ -17,15 +17,18 @@ class Operation:
         }
 
     def operate(self):
+        logging.debug("operation init: {}".format(self.path))
         self.operations[self.operation]()
-
 
     # INOTIFY operation handlers
     def op_init(self):
+        pass
 
     def op_create(self):
+        pass
 
     def op_move(self):
+        pass
 
 
 def process_element(self):
