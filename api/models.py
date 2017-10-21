@@ -129,17 +129,16 @@ class Tag(db.Model):
 class File(db.Model):
     __tablename__ = "files"
 
-    file_hash = db.Column(db.LargeBinary(length=32), nullable=False)
+    file_hash = db.Column(db.LargeBinary(length=32),
+                          ForeignKey("media.file_hash"),
+                          nullable=False)
     path = db.Column(db.Text, nullable=False, unique=True, primary_key=True)
 
 
 class Media(db.Model):
     __tablename__ = "media"
 
-    file_hash = db.Column(db.LargeBinary(length=32),
-                          ForeignKey("files.file_hash"),
-                          nullable=False)
-
+    file_hash = db.Column(db.LargeBinary(length=32), nullable=False, unique=True)
     media_id = db.Column(db.Integer, primary_key=True)
     mediainfo = db.Column(postgresql.JSONB, nullable=False)
     lastModified = db.Column(db.Numeric(scale=6, asdecimal=False), nullable=False)
