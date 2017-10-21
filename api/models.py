@@ -1,6 +1,6 @@
 from api import db
 from sqlalchemy.dialects import postgresql
-from sqlalchemy import ForeignKey, Column, text
+from sqlalchemy import foreignkey, column, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import bindparam
 import urllib
@@ -17,9 +17,9 @@ tag_media_association_table = db.Table('tag_media',
                                        Column('tag_id',
                                               db.Integer,
                                               db.ForeignKey('tag.tag_id')),
-                                       Column('media_id',
+                                       Column('file_hash',
                                               db.Integer,
-                                              db.ForeignKey('media.media_id',
+                                              db.ForeignKey('media.file_hash',
                                                             ondelete="cascade")))
 
 # These queries search in the mediainfo JSON which looks like this
@@ -138,15 +138,10 @@ class File(db.Model):
 class Media(db.Model):
     __tablename__ = "media"
 
-    file_hash = db.Column(db.LargeBinary(length=32), nullable=False, unique=True)
-    media_id = db.Column(db.Integer, primary_key=True)
+    file_hash = db.Column(db.LargeBinary(length=32), nullable=False, unique=True, primary_key=True)
     mediainfo = db.Column(postgresql.JSONB, nullable=False)
-    lastModified = db.Column(db.Numeric(scale=6, asdecimal=False), nullable=False)
+    lastModified = db.Column(db.Time, nullable=False)
     mimetype = db.Column(db.Text, nullable=False)
-    timeLastIndexed = db.Column(db.Numeric(scale=7, asdecimal=False), nullable=False)
-
-    # TOD/FIXME: One metadata for all files with same SHA
-    meta = db.Column(postgresql.JSONB, nullable=False, default={})
 
     # media requires a category
     category_id = Column(db.Integer,
@@ -165,7 +160,7 @@ class Media(db.Model):
 
         mediainfo_for_api = {
             "title": None,
-            "media_id": self.media_id,
+            "file_hash": self.file_hash,
             "path": self.path,
             "url": urllib.parse.urljoin(URL_TO_MOUNT,
                                         urllib.parse.quote(self.path)),
@@ -175,7 +170,6 @@ class Media(db.Model):
             "tags": tags,
             "mimetype": self.mimetype,
             "last_modified": self.lastModified,
-            "last_indexed": self.timeLastIndexed,
             "sha": hex_sha,
             "raw_mediainfo": None,
             "thumbnail": "",
@@ -249,7 +243,7 @@ def get_or_create_tag(name):
 # the outer list means OR and the inner list means AND
 def search_media(query=None, codecs=[],
                  width=None, height=None, category=None, mime=[],
-                 tags=None, order_by=Media.timeLastIndexed.asc(), sha=None,
+                 tags=None, order_by=Media.lastModified.asc(), sha=None,
                  offset=0, limit=20):
     media = Media.query
 
