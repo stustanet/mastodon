@@ -2,6 +2,8 @@ import redis
 from config import REDIS_HOST
 import logging
 import pickle
+import hashlib
+from api.models import File
 
 r = redis.Redis(host=REDIS_HOST)
 
@@ -12,10 +14,10 @@ class Operation:
         self.path = path
         self.operation = operation
         self.operations = {
-            "INIT"   : self.op_init,
-            "CREATE" : self.op_create,
-            "MOVE"   : self.op_move,
-            "RENAME" : self.op_rename,
+            "INIT": self.op_init,
+            "CREATE": self.op_create,
+            "MOVE": self.op_move,
+            "RENAME": self.op_rename,
         }
 
     def operate(self):
@@ -24,16 +26,38 @@ class Operation:
 
     # INOTIFY operation handlers
     def op_init(self):
-        pass
+        logging.debug("Initial Hash: {}".format(self.path))
+        self.op_create()
 
     def op_create(self):
-        pass
-
-    def op_move(self):
-        pass
+        with open(self.path, 'r') as f:
+            # Hash the file
+            hash_str = hashlib.sha256(f.read().encode())
+            # Create new file object and add to db
+            db_file = create_new_file(hash_str, self.path)
+            File.add(db_file)
+            #  Lookup if hash already exists
+            query = File.query().filter_by(path=self.path)
+            if query is None:
+                pass
+            else:
+                pass
 
     def op_rename(self):
         pass
+
+    def op_truncate(self):
+        pass
+
+    def op_mkdir(self):
+        pass
+
+    def op_deldir(self):
+        pass
+
+
+def create_new_file():
+    pass
 
 
 def process_element():
@@ -49,6 +73,6 @@ def process_queue():
         process_element()
 
 
-if __name__ == "__main__":
+if __name__ is "__main__":
     logging.basicConfig(level=logging.DEBUG)
     process_queue()
