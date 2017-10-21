@@ -6,6 +6,8 @@ import os
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+REDIS_HOST = "localhost"
+
 # database info
 DB_NAME = "CHANGEME"
 DB_PASSWORD = "CHANGEME"
