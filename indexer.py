@@ -1,8 +1,11 @@
+#!/usr/bin/env python3
 import redis
 from config import REDIS_HOST
 import logging
 import pickle
 import hashlib
+import sqlalchemy
+from sqlalchemy.ext.declarative_base import declarative_base
 from api.models import Media, File
 
 r = redis.Redis(host=REDIS_HOST)
@@ -39,7 +42,6 @@ class Operation:
             #  Lookup if hash already exists
             query = Media.query().filter_by(file_hash=hash_str)
             if query is None:
-
                 pass
             else:
                 pass
@@ -77,3 +79,6 @@ def process_queue():
 if __name__ is "__main__":
     logging.basicConfig(level=logging.DEBUG)
     process_queue()
+    engine = sqlalchemy.create_engine('postgresql://postgres:test1@localhost/mastodon')
+    base = declarative_base()
+
