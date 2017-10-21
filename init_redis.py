@@ -1,3 +1,4 @@
+#!python3
 import logging
 from config import PATH_TO_MOUNT, INDEX_FOLDER
 import redis

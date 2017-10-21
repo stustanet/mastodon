@@ -3,7 +3,7 @@ from config import REDIS_HOST
 import logging
 import pickle
 import hashlib
-from api.models import Media
+from api.models import Media, File
 
 r = redis.Redis(host=REDIS_HOST)
 
@@ -39,6 +39,7 @@ class Operation:
             #  Lookup if hash already exists
             query = Media.query().filter_by(file_hash=hash_str)
             if query is None:
+
                 pass
             else:
                 pass
