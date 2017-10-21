@@ -130,7 +130,7 @@ class File(db.Model):
     __tablename__ = "files"
 
     file_hash = db.Column(db.LargeBinary(length=32), nullable=False)
-    path = db.Column(db.Text, nullable=False, unique=True)
+    path = db.Column(db.Text, nullable=False, unique=True, primary_key=True)
 
 
 class Media(db.Model):
