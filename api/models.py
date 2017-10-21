@@ -146,7 +146,7 @@ class Media(db.Model):
     mimetype = db.Column(db.Text, nullable=False)
     timeLastIndexed = db.Column(db.Numeric(scale=7, asdecimal=False), nullable=False)
 
-    # TODO/FIXME: One metadata for all files with same SHA
+    # TOD/FIXME: One metadata for all files with same SHA
     meta = db.Column(postgresql.JSONB, nullable=False, default={})
 
     # media requires a category
@@ -250,13 +250,13 @@ def get_or_create_tag(name):
 # the outer list means OR and the inner list means AND
 def search_media(query=None, codecs=[],
                  width=None, height=None, category=None, mime=[],
-                 tags=None, order_by=Media.path.asc(), sha=None,
+                 tags=None, order_by=Media.timeLastIndexed.asc(), sha=None,
                  offset=0, limit=20):
     media = Media.query
 
     if query:
         for word in query.split():
-            media = media.filter(Media.path.ilike("%{}%".format(word)))
+            media = media.filter(Media.tags.ilike("%{}%".format(word)))
 
     media = media.filter(filter_multiple_codecs_or(codecs))
 
