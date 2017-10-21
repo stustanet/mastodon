@@ -1,6 +1,6 @@
 from api import db
 from sqlalchemy.dialects import postgresql
-from sqlalchemy import foreignkey, column, text
+from sqlalchemy import Foreignkey, Column, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import bindparam
 import urllib
