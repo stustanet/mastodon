@@ -111,16 +111,16 @@ def search():
 
 
 
-@v1.route('/media/<int:media_id>', methods=["GET"])
-def mediaById(media_id):
-    medium = Media.query.filter_by(media_id=media_id).first_or_404()
+@v1.route('/media/<file_hash>', methods=["GET"])
+def mediaById(file_hash):
+    medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
     json = jsonify(**medium.api_fields(include_raw_mediainfo=True))
     return json
 
 
-@v1.route("/media/<int:media_id>/tag/<tag_name>", methods=["POST", "DELETE"])
-def mediaTag(media_id, tag_name):
-    medium = Media.query.filter_by(media_id=media_id).first_or_404()
+@v1.route("/media/<file_hash>/tag/<tag_name>", methods=["POST", "DELETE"])
+def mediaTag(file_hash, tag_name):
+    medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
     tag = get_or_create_tag(tag_name)
 
     if request.method == "POST":

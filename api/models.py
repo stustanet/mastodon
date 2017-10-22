@@ -1,4 +1,5 @@
 from api import db
+from guessit import guessit
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship
@@ -161,6 +162,7 @@ class Media(db.Model):
             "title": None,
             "file_hash": self.file_hash,
             "name": self.name,
+            "guessit" : guessit(self.name),
             "duration": None,
             "streams": [],
             "category": self.category.name,
