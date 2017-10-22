@@ -47,9 +47,9 @@ def do_search(args):
 
     order_by = None
     if args["order_by"] == "name_asc":
-        order_by = Media.path.asc()
+        order_by = Media.name.asc()
     elif args["order_by"] == "name_desc":
-        order_by = Media.path.desc()
+        order_by = Media.name.desc()
     elif args["order_by"] == "indexed_asc":
         order_by = Media.timeLastIndexed.asc()
     elif args["order_by"] == "indexed_desc":
@@ -108,6 +108,7 @@ def search():
     (count, media) = result
 
     return jsonify(total=count, media=[medium.api_fields() for medium in media])
+
 
 
 @v1.route('/media/<int:media_id>', methods=["GET"])

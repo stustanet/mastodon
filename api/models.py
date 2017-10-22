@@ -1,12 +1,11 @@
 from api import db
 from sqlalchemy.dialects import postgresql
-from sqlalchemy import Foreignkey, Column, Text
+from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import bindparam
 import urllib
 from config import URL_TO_MOUNT, THUMBNAIL_ROOT_URL
 import binascii
-import videoinfo
 import logging
 import os
 from flask import jsonify, url_for
@@ -18,7 +17,7 @@ tag_media_association_table = db.Table('tag_media',
                                               db.Integer,
                                               db.ForeignKey('tag.tag_id')),
                                        Column('file_hash',
-                                              db.Integer,
+                                              db.VARCHAR,
                                               db.ForeignKey('media.file_hash',
                                                             ondelete="cascade")))
 
@@ -129,7 +128,7 @@ class Tag(db.Model):
 class File(db.Model):
     __tablename__ = "files"
 
-    file_hash = db.Column(db.LargeBinary(length=32),
+    file_hash = db.Column(db.VARCHAR,
                           ForeignKey("media.file_hash"),
                           nullable=False)
     path = db.Column(db.Text, nullable=False, unique=True, primary_key=True)
@@ -138,10 +137,11 @@ class File(db.Model):
 class Media(db.Model):
     __tablename__ = "media"
 
-    file_hash = db.Column(db.LargeBinary(length=32), nullable=False, unique=True, primary_key=True)
+    file_hash = db.Column(db.VARCHAR, nullable=False, unique=True, primary_key=True)
     mediainfo = db.Column(postgresql.JSONB, nullable=False)
-    lastModified = db.Column(db.Time, nullable=False)
+    lastModified = db.Column(db.DateTime, nullable=False)
     mimetype = db.Column(db.Text, nullable=False)
+    name = db.Column(db.Text, nullable=False)
 
     # media requires a category
     category_id = Column(db.Integer,
@@ -155,29 +155,25 @@ class Media(db.Model):
                         cascade="all")
 
     def api_fields(self, include_raw_mediainfo=False):
-        hex_sha = binascii.hexlify(self.sha).decode("ascii")
         tags = [tag.name for tag in self.tags]
 
         mediainfo_for_api = {
             "title": None,
             "file_hash": self.file_hash,
-            "path": self.path,
-            "url": urllib.parse.urljoin(URL_TO_MOUNT,
-                                        urllib.parse.quote(self.path)),
+            "name": self.name,
             "duration": None,
             "streams": [],
             "category": self.category.name,
             "tags": tags,
             "mimetype": self.mimetype,
-            "last_modified": self.lastModified,
-            "sha": hex_sha,
+            "last_modified": self.lastModified.ctime(),
             "raw_mediainfo": None,
             "thumbnail": "",
             "size": None
         }
 
         mediainfo_for_api["thumbnail"] = \
-            urllib.parse.urljoin(THUMBNAIL_ROOT_URL, hex_sha+".jpg")
+            urllib.parse.urljoin(THUMBNAIL_ROOT_URL, self.file_hash+".jpg")
 
 
         if "format" in self.mediainfo and "duration" in self.mediainfo["format"]:
@@ -196,7 +192,7 @@ class Media(db.Model):
               self.mediainfo["format"]["tags"]["title"]
         else:
             mediainfo_for_api["title"] = \
-              os.path.splitext(os.path.basename(os.path.normpath(self.path)))[0]
+              os.path.splitext(os.path.basename(os.path.normpath(self.name)))[0]
 
         if "streams" in self.mediainfo:
             for stream in self.mediainfo["streams"]:
