@@ -19,7 +19,7 @@ category_parser.add_argument("width", required=False, type=int)
 category_parser.add_argument("height", required=False, type=int)
 category_parser.add_argument("tag", required=False, action="append", default=[])
 category_parser.add_argument("order_by", required=False, default="name_asc")
-category_parser.add_argument("sha")
+category_parser.add_argument("file_hash")
 category_parser.add_argument("mime", action="append", default=[])
 category_parser.add_argument("offset", default=0, type=int)
 category_parser.add_argument("limit", default=20, type=int)
@@ -55,12 +55,12 @@ def do_search(args):
     elif args["order_by"] == "indexed_desc":
         order_by = Media.timeLastIndexed.desc()
 
-    sha = None
-    if args["sha"]:
-        if len(args["sha"]) != 64:
-            return "sha too long"
+    file_hash = None
+    if args["file_hash"]:
+        if len(args["file_hash"]) != 64:
+            return "file_hash too long"
 
-        sha = binascii.unhexlify(args["sha"])
+        file_hash = binascii.unhexlify(args["file_hash"])
 
     limit = args["limit"]
     if limit > 100:
@@ -83,7 +83,7 @@ def do_search(args):
 
     return search_media(query=args["q"], codecs=codecs, mime=args["mime"],
         width=args["width"], height=args["height"], category=args["category"],
-        tags=tags, order_by=order_by, sha=sha, limit=limit, offset=args["offset"])
+        tags=tags, order_by=order_by, file_hash=file_hash, limit=limit, offset=args["offset"])
 
 
 
@@ -158,6 +158,8 @@ def categoryById(category):
         return "Bad Request: " + result, 400
 
     (count, media) = result
+
+    print(result)
 
     json = jsonify(total=count, media=[medium.api_fields() for medium in media])
     return json

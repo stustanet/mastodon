@@ -1,10 +1,8 @@
 from flask import Flask, url_for, redirect
-from flask.ext.sqlalchemy import SQLAlchemy
 import config
-from flask.ext.cors import CORS
+from flask.ext.sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-CORS(app)
 app.config.from_object("config")
 db = SQLAlchemy(app)
 
@@ -21,4 +19,3 @@ def index():
     return redirect(url_for('v1.doc'))
 
 from api import models
-

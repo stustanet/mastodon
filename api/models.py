@@ -4,13 +4,18 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import bindparam
+from sqlalchemy_searchable import make_searchable, SearchQueryMixin, search
+from sqlalchemy_utils.types import TSVectorType
+from flask.ext.sqlalchemy import BaseQuery
 import urllib
 from config import URL_TO_MOUNT, THUMBNAIL_ROOT_URL
 import binascii
 import logging
 import os
 from flask import jsonify, url_for
+import json
 
+make_searchable()
 
 tag_media_association_table = db.Table('tag_media',
                                        db.metadata,
@@ -99,6 +104,7 @@ filter_width_greater_equals = """\
     ) > 0
  """
 
+
 filter_height_greater_equals = """\
     (SELECT COUNT(1)
         FROM jsonb_array_elements(mediainfo -> 'streams') AS stream
@@ -109,7 +115,6 @@ filter_height_greater_equals = """\
 
 class Category(db.Model):
     __tablename__ = "category"
-
     category_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, unique=True, nullable=False)
     media = relationship("Media", back_populates="category")
@@ -117,32 +122,32 @@ class Category(db.Model):
 
 class Tag(db.Model):
     __tablename__ = "tag"
-
     tag_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, unique=True, nullable=False)
-
     media = relationship("Media",
                          secondary=tag_media_association_table,
                          back_populates="tags")
+    search_vector = db.Column(TSVectorType('name'))
 
 
 class File(db.Model):
     __tablename__ = "files"
-
     file_hash = db.Column(db.VARCHAR,
                           ForeignKey("media.file_hash"),
                           nullable=False)
     path = db.Column(db.Text, nullable=False, unique=True, primary_key=True)
+    search_vector = db.Column(TSVectorType('path'))
 
 
 class Media(db.Model):
     __tablename__ = "media"
-
     file_hash = db.Column(db.VARCHAR, nullable=False, unique=True, primary_key=True)
     mediainfo = db.Column(postgresql.JSONB, nullable=False)
     lastModified = db.Column(db.DateTime, nullable=False)
     mimetype = db.Column(db.Text, nullable=False)
     name = db.Column(db.Text, nullable=False)
+    search_vector = db.Column(TSVectorType('name', 'tags'))
+    files = db.relationship('File', backref='files', lazy='joined')
 
     # media requires a category
     category_id = Column(db.Integer,
@@ -153,68 +158,23 @@ class Media(db.Model):
     tags = relationship("Tag",
                         secondary=tag_media_association_table,
                         back_populates="media",
+                        lazy="joined",
                         cascade="all")
 
     def api_fields(self, include_raw_mediainfo=False):
-        tags = [tag.name for tag in self.tags]
 
         mediainfo_for_api = {
             "title": None,
             "file_hash": self.file_hash,
+            "paths": [f.path for f in self.files],
+            "tags": [t.name for t in self.tags],
             "name": self.name,
-            "guessit" : guessit(self.name),
-            "duration": None,
-            "streams": [],
             "category": self.category.name,
-            "tags": tags,
             "mimetype": self.mimetype,
             "last_modified": self.lastModified.ctime(),
-            "raw_mediainfo": None,
+            "raw_mediainfo": json.loads(self.mediainfo),
             "thumbnail": "",
-            "size": None
         }
-
-        mediainfo_for_api["thumbnail"] = \
-            urllib.parse.urljoin(THUMBNAIL_ROOT_URL, self.file_hash+".jpg")
-
-
-        if "format" in self.mediainfo and "duration" in self.mediainfo["format"]:
-            mediainfo_for_api["duration"] = \
-              float(self.mediainfo["format"]["duration"])
-
-        if "format" in self.mediainfo and "size" in \
-           self.mediainfo["format"]:
-            mediainfo_for_api["size"] = \
-              float(self.mediainfo["format"]["size"])
-
-        if "format" in self.mediainfo and "tags" in \
-           self.mediainfo["format"] and "title" in \
-           self.mediainfo["format"]["tags"]:
-            mediainfo_for_api["title"] = \
-              self.mediainfo["format"]["tags"]["title"]
-        else:
-            mediainfo_for_api["title"] = \
-              os.path.splitext(os.path.basename(os.path.normpath(self.name)))[0]
-
-        if "streams" in self.mediainfo:
-            for stream in self.mediainfo["streams"]:
-                # TODO: add audio stream language
-                s = {
-                    "index": stream.get("index"),
-                    "codec": stream.get("codec_name"),
-                    "width": stream.get("width"),
-                    "height": stream.get("height"),
-                    "duration": stream.get("duration"),
-                    "type": stream.get("codec_type")
-                }
-
-                if not s["duration"] and "duration" in mediainfo_for_api:
-                    s["duration"] = mediainfo_for_api["duration"]
-
-                mediainfo_for_api["streams"].append(s)
-
-        if include_raw_mediainfo:
-            mediainfo_for_api["raw_mediainfo"] = self.mediainfo
 
         return mediainfo_for_api
 
@@ -241,15 +201,25 @@ def get_or_create_tag(name):
 # the outer list means OR and the inner list means AND
 def search_media(query=None, codecs=[],
                  width=None, height=None, category=None, mime=[],
-                 tags=None, order_by=Media.lastModified.asc(), sha=None,
+                 tags=None, order_by=Media.lastModified.asc(), file_hash=None,
                  offset=0, limit=20):
+
+
+    combined_search_vector = Media.search_vector | Tag.search_vector | File.search_vector
+
     media = Media.query
-
-    if query:
-        for word in query.split():
-            media = media.filter(Media.tags.ilike("%{}%".format(word)))
-
-    media = media.filter(filter_multiple_codecs_or(codecs))
+    # media = Media.query.search(query, 'first')
+    # media = (
+    #     Media.query
+    #     .join(tag_media_association_table)
+    #     .join(Tag)
+    #     .join(File)
+    #     .filter(
+    #         combined_search_vector.match(
+    #             query
+    #         )
+    #     )
+    # )
 
     if width:
         media = media.filter(text(filter_width_greater_equals,
@@ -262,8 +232,8 @@ def search_media(query=None, codecs=[],
     if category:
         media = media.filter(Media.category_id == category)
 
-    if sha:
-        media = media.filter(Media.sha == sha)
+    if file_hash:
+        media = media.filter(Media.file_hash == file_hash)
 
     if tags:
         for tag in tags:
