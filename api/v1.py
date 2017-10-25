@@ -110,11 +110,10 @@ def search():
     return jsonify(total=count, media=[medium.api_fields() for medium in media])
 
 
-@v1.route('/tag/<tag_name>', methods=["GET"])
-def mediaByTag(tag_name):
-    media = Media.query.filter_by(file_hash=file_hash).first_or_404()
-    json = jsonify(**medium.api_fields(include_raw_mediainfo=True))
-    return json
+@v1.route('/media/<file_hash>', methods=["GET"])
+def media(file_hash):
+    medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
+    return jsonify(**medium.api_fields(include_raw_mediainfo=True))
 
 
 @v1.route("/media/<file_hash>/tag/<tag_name>", methods=["POST", "DELETE"])
@@ -126,10 +125,11 @@ def mediaTag(file_hash, tag_name):
             db.session.add(mediatag)
             db.session.commit()
         else:
-            medium = Media.query.filter_by(file_hash=file_hash).first()
+            medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
             mediatag = MediaTag(file_hash=file_hash)
             mediatag.tag = get_or_create_tag(tag_name)
             medium.tags.append(mediatag)
+            db.session.add(mediatag)
             db.session.add(medium)
             db.session.commit()
     elif request.method == "DELETE":
@@ -139,7 +139,6 @@ def mediaTag(file_hash, tag_name):
             db.session.commit()
         else:
             return "Bad Request: ", 400
-
 
     return jsonify(**mediatag.medium.api_fields())
 

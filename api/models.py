@@ -4,7 +4,6 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy import ForeignKey, Column, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import bindparam
-from sqlalchemy_searchable import make_searchable, SearchQueryMixin, search
 from sqlalchemy_utils.types import TSVectorType
 from flask_sqlalchemy import BaseQuery
 import urllib
@@ -14,8 +13,6 @@ import logging
 import os
 from flask import jsonify, url_for
 import json
-
-make_searchable()
 
 # These queries search in the mediainfo JSON which looks like this
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
@@ -192,22 +189,7 @@ def search_media(query=None, codecs=[],
                  tags=None, order_by=Media.lastModified.asc(), file_hash=None,
                  offset=0, limit=20):
 
-
-    # combined_search_vector = Media.search_vector | Tag.search_vector | File.search_vector
-
     media = Media.query
-    # media = Media.query.search(query, 'first')
-    # media = (
-    #     Media.query
-    #     .join(tag_media_association_table)
-    #     .join(Tag)
-    #     .join(File)
-    #     .filter(
-    #         combined_search_vector.match(
-    #             query
-    #         )
-    #     )
-    # )
 
     if width:
         media = media.filter(text(filter_width_greater_equals,
