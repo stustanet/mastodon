@@ -1,10 +1,15 @@
 from flask import Flask, url_for, redirect
 import config
-from flask.ext.sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 
 app = Flask(__name__)
+# Cross origin resources
+# Doc: https://github.com/corydolphin/flask-cors
+CORS(app)
 app.config.from_object("config")
 db = SQLAlchemy(app)
+db.create_all()
 
 from api.v1 import v1
 

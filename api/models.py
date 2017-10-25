@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import bindparam
 from sqlalchemy_searchable import make_searchable, SearchQueryMixin, search
 from sqlalchemy_utils.types import TSVectorType
-from flask.ext.sqlalchemy import BaseQuery
+from flask_sqlalchemy import BaseQuery
 import urllib
 from config import URL_TO_MOUNT, THUMBNAIL_ROOT_URL
 import binascii
@@ -16,16 +16,6 @@ from flask import jsonify, url_for
 import json
 
 make_searchable()
-
-tag_media_association_table = db.Table('tag_media',
-                                       db.metadata,
-                                       Column('tag_id',
-                                              db.Integer,
-                                              db.ForeignKey('tag.tag_id')),
-                                       Column('file_hash',
-                                              db.VARCHAR,
-                                              db.ForeignKey('media.file_hash',
-                                                            ondelete="cascade")))
 
 # These queries search in the mediainfo JSON which looks like this
 # {"streams" : [{"codec_name" : ".." , "width": ".." , "height": ".."}]}
@@ -120,54 +110,52 @@ class Category(db.Model):
     media = relationship("Media", back_populates="category")
 
 
-class Tag(db.Model):
-    __tablename__ = "tag"
-    tag_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.Text, unique=True, nullable=False)
-    media = relationship("Media",
-                         secondary=tag_media_association_table,
-                         back_populates="tags")
-    search_vector = db.Column(TSVectorType('name'))
-
-
 class File(db.Model):
     __tablename__ = "files"
     file_hash = db.Column(db.VARCHAR,
                           ForeignKey("media.file_hash"),
                           nullable=False)
     path = db.Column(db.Text, nullable=False, unique=True, primary_key=True)
-    search_vector = db.Column(TSVectorType('path'))
+
+
+class MediaTag(db.Model):
+    """
+    Media - Tag Association class.
+    Documentation: http://docs.sqlalchemy.org/en/latest/orm/basic_relationships.html#association-pattern
+    """
+    file_hash = Column(db.VARCHAR, db.ForeignKey("media.file_hash"), primary_key=True)
+    tag_name = Column(db.Text, db.ForeignKey("tags.name"), primary_key=True)
+    score = Column('score', db.Integer, default=0, nullable=False)
+    medium = relationship("Media", back_populates="tags")
+    tag = relationship("Tag", back_populates="media")
+
+
+class Tag(db.Model):
+    __tablename__ = "tags"
+    name = db.Column(db.Text, primary_key=True)
+    media = relationship("MediaTag", back_populates="tag")
 
 
 class Media(db.Model):
     __tablename__ = "media"
-    file_hash = db.Column(db.VARCHAR, nullable=False, unique=True, primary_key=True)
+    name = db.Column(db.Text, nullable=False)
+    file_hash = db.Column(db.VARCHAR, primary_key=True)
     mediainfo = db.Column(postgresql.JSONB, nullable=False)
     lastModified = db.Column(db.DateTime, nullable=False)
     mimetype = db.Column(db.Text, nullable=False)
-    name = db.Column(db.Text, nullable=False)
-    search_vector = db.Column(TSVectorType('name', 'tags'))
     files = db.relationship('File', backref='files', lazy='joined')
-
-    # media requires a category
     category_id = Column(db.Integer,
                          ForeignKey("category.category_id"),
                          nullable=False)
     category = relationship("Category")
-
-    tags = relationship("Tag",
-                        secondary=tag_media_association_table,
-                        back_populates="media",
-                        lazy="joined",
-                        cascade="all")
+    tags = relationship("MediaTag", back_populates="medium")
 
     def api_fields(self, include_raw_mediainfo=False):
 
         mediainfo_for_api = {
-            "title": None,
             "file_hash": self.file_hash,
             "paths": [f.path for f in self.files],
-            "tags": [t.name for t in self.tags],
+            "tags": [(t.tag_name, t.score) for t in self.tags],
             "name": self.name,
             "category": self.category.name,
             "mimetype": self.mimetype,
@@ -205,7 +193,7 @@ def search_media(query=None, codecs=[],
                  offset=0, limit=20):
 
 
-    combined_search_vector = Media.search_vector | Tag.search_vector | File.search_vector
+    # combined_search_vector = Media.search_vector | Tag.search_vector | File.search_vector
 
     media = Media.query
     # media = Media.query.search(query, 'first')

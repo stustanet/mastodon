@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, render_template, Response, request
 from flask_restful import reqparse
-from .models import Media, Category, search_media, Tag, get_or_create_tag
+from .models import Media, Category, search_media, Tag, get_or_create_tag, MediaTag
 from api import app
 from config import basedir
 from api import db
@@ -110,29 +110,38 @@ def search():
     return jsonify(total=count, media=[medium.api_fields() for medium in media])
 
 
-
-@v1.route('/media/<file_hash>', methods=["GET"])
-def mediaById(file_hash):
-    medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
+@v1.route('/tag/<tag_name>', methods=["GET"])
+def mediaByTag(tag_name):
+    media = Media.query.filter_by(file_hash=file_hash).first_or_404()
     json = jsonify(**medium.api_fields(include_raw_mediainfo=True))
     return json
 
 
 @v1.route("/media/<file_hash>/tag/<tag_name>", methods=["POST", "DELETE"])
 def mediaTag(file_hash, tag_name):
-    medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
-    tag = get_or_create_tag(tag_name)
-
+    mediatag = MediaTag.query.filter_by(file_hash=file_hash, tag_name=tag_name).first()
     if request.method == "POST":
-        medium.tags.append(tag)
+        if mediatag is not None:
+            mediatag.score += 1
+            db.session.add(mediatag)
+            db.session.commit()
+        else:
+            medium = Media.query.filter_by(file_hash=file_hash).first()
+            mediatag = MediaTag(file_hash=file_hash)
+            mediatag.tag = get_or_create_tag(tag_name)
+            medium.tags.append(mediatag)
+            db.session.add(medium)
+            db.session.commit()
     elif request.method == "DELETE":
-        if tag in medium.tags:
-            medium.tags.remove(tag)
+        if mediatag is not None:
+            mediatag.score -= 1
+            db.session.add(mediatag)
+            db.session.commit()
+        else:
+            return "Bad Request: ", 400
 
-    db.session.add(medium)
-    db.session.commit()
 
-    return jsonify(**medium.api_fields())
+    return jsonify(**mediatag.medium.api_fields())
 
 
 @v1.route('/category', methods=["GET"])
@@ -158,8 +167,6 @@ def categoryById(category):
         return "Bad Request: " + result, 400
 
     (count, media) = result
-
-    print(result)
 
     json = jsonify(total=count, media=[medium.api_fields() for medium in media])
     return json
