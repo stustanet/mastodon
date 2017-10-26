@@ -152,7 +152,7 @@ class Media(db.Model):
         mediainfo_for_api = {
             "file_hash": self.file_hash,
             "paths": [f.path for f in self.files],
-            "tags": [{t.tag_name: t.score} for t in self.tags],
+            "tags": {t.tag_name: t.score for t in self.tags},
             "name": self.name,
             "category": self.category.name,
             "mimetype": self.mimetype,
