@@ -32,7 +32,7 @@ def filter_multiple_codecs_and(codecs, i=0):
     queries = []
     for codec in codecs:
         param_name = "codec_name_" + str(i)
-        i = i + 1
+        i += 1
 
         # No, there is no obvious SQL injection possible here
         # The format is just to include a parameter for sqlalchemy with
@@ -152,7 +152,7 @@ class Media(db.Model):
         mediainfo_for_api = {
             "file_hash": self.file_hash,
             "paths": [f.path for f in self.files],
-            "tags": {t.tag_name: t.score for t in self.tags},
+            "tags": [{"title": t.tag_name, "score": t.score} for t in self.tags],
             "name": self.name,
             "category": self.category.name,
             "mimetype": self.mimetype,
