@@ -161,6 +161,8 @@ class Media(db.Model):
             "last_modified": self.lastModified.ctime(),
             "raw_mediainfo": json.loads(self.mediainfo),
             "thumbnail": "",
+            "score": self.score,
+            "views": self.views,
         }
 
         return mediainfo_for_api
