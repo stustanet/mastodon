@@ -116,7 +116,7 @@ def media(file_hash):
     return jsonify(**medium.api_fields(include_raw_mediainfo=True))
 
 
-@v1.route("/media/<file_hash>/view", methods=["post"])
+@v1.route("/media/<file_hash>/view", methods=["POST"])
 def media_view(file_hash, tag_name):
     medium = media.query.filter_by(file_hash=file_hash).first_or_404()
     medium.views += 1
@@ -125,22 +125,22 @@ def media_view(file_hash, tag_name):
     return jsonify(**medium.api_fields(include_raw_mediainfo=true))
 
 
-@v1.route("/media/<file_hash>/vote", methods=["post", "delete"])
+@v1.route("/media/<file_hash>/vote", methods=["POST", "DELETE"])
 def media_view(file_hash, tag_name):
     medium = media.query.filter_by(file_hash=file_hash).first_or_404()
-    if request.method == "post":
+    if request.method == "POST":
         medium.score += 1
-    elif request.method == "delete":
+    elif request.method == "DELETE":
         medium.score -= 1
     db.session.add(medium)
     db.session.commit()
     return jsonify(**medium.api_fields(include_raw_mediainfo=true))
 
 
-@v1.route("/media/<file_hash>/tag/<tag_name>", methods=["post", "delete"])
+@v1.route("/media/<file_hash>/tag/<tag_name>", methods=["POST", "DELETE"])
 def mediatag(file_hash, tag_name):
     mediatag = mediatag.query.filter_by(file_hash=file_hash, tag_name=tag_name).first()
-    if request.method == "post":
+    if request.method == "POST":
         if mediatag is not none:
             mediatag.score += 1
             db.session.add(mediatag)
@@ -153,13 +153,13 @@ def mediatag(file_hash, tag_name):
             db.session.add(mediatag)
             db.session.add(medium)
             db.session.commit()
-    elif request.method == "delete":
+    elif request.method == "DELETE":
         if mediatag is not none:
             mediatag.score -= 1
             db.session.add(mediatag)
             db.session.commit()
         else:
-            return "bad request: ", 400
+            return "Bad request: ", 400
 
     return jsonify(**mediatag.medium.api_fields())
 
