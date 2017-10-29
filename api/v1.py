@@ -139,7 +139,7 @@ def media_view(file_hash, tag_name):
 
 @v1.route("/media/<file_hash>/tag/<tag_name>", methods=["POST", "DELETE"])
 def media_tag(file_hash, tag_name):
-    mediatag = Mediatag.query.filter_by(file_hash=file_hash, tag_name=tag_name).first()
+    mediatag = MediaTag.query.filter_by(file_hash=file_hash, tag_name=tag_name).first()
     if request.method == "POST":
         if mediatag is not None:
             mediatag.score += 1
@@ -147,7 +147,7 @@ def media_tag(file_hash, tag_name):
             db.session.commit()
         else:
             medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
-            mediatag = Mediatag(file_hash=file_hash)
+            mediatag = MediaTag(file_hash=file_hash)
             mediatag.tag = get_or_create_tag(tag_name)
             medium.tags.append(mediatag)
             db.session.add(mediatag)
@@ -159,7 +159,7 @@ def media_tag(file_hash, tag_name):
             db.session.add(mediatag)
             db.session.commit()
         else:
-            return "Bad request: ", 400
+            return "Bad Request: ", 400
 
     return jsonify(**mediatag.medium.api_fields())
 
