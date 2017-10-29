@@ -116,29 +116,37 @@ def media(file_hash):
     return jsonify(**medium.api_fields(include_raw_mediainfo=True))
 
 
-@v1.route("/media/<file_hash>/tag/<tag_name>", methods=["POST", "DELETE"])
-def mediaTag(file_hash, tag_name):
-    mediatag = MediaTag.query.filter_by(file_hash=file_hash, tag_name=tag_name).first()
-    if request.method == "POST":
-        if mediatag is not None:
+@v1.route("/media/<file_hash>/view", methods=["post"])
+def media_view(file_hash, tag_name):
+    medium = media.query.filter_by(file_hash=file_hash).first_or_404()
+    medium.views += 1
+    db.session.add(medium)
+    db.session.commit()
+
+
+@v1.route("/media/<file_hash>/tag/<tag_name>", methods=["post", "delete"])
+def mediatag(file_hash, tag_name):
+    mediatag = mediatag.query.filter_by(file_hash=file_hash, tag_name=tag_name).first()
+    if request.method == "post":
+        if mediatag is not none:
             mediatag.score += 1
             db.session.add(mediatag)
             db.session.commit()
         else:
-            medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
-            mediatag = MediaTag(file_hash=file_hash)
+            medium = media.query.filter_by(file_hash=file_hash).first_or_404()
+            mediatag = mediatag(file_hash=file_hash)
             mediatag.tag = get_or_create_tag(tag_name)
             medium.tags.append(mediatag)
             db.session.add(mediatag)
             db.session.add(medium)
             db.session.commit()
-    elif request.method == "DELETE":
-        if mediatag is not None:
+    elif request.method == "delete":
+        if mediatag is not none:
             mediatag.score -= 1
             db.session.add(mediatag)
             db.session.commit()
         else:
-            return "Bad Request: ", 400
+            return "bad request: ", 400
 
     return jsonify(**mediatag.medium.api_fields())
 

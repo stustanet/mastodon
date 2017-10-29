@@ -141,7 +141,8 @@ class Media(db.Model):
     lastModified = db.Column(db.DateTime, nullable=False)
     mimetype = db.Column(db.Text, nullable=False)
     files = db.relationship('File', backref='files', lazy='joined')
-    category_id = Column(db.Integer,
+    views = db.Column(db.Integer, default=0)
+    Category_id = Column(db.Integer,
                          ForeignKey("category.category_id"),
                          nullable=False)
     category = relationship("Category")
