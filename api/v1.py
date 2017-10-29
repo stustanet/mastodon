@@ -122,7 +122,7 @@ def media_view(file_hash):
     medium.views += 1
     db.session.add(medium)
     db.session.commit()
-    return jsonify(**medium.api_fields(include_raw_mediainfo=true))
+    return jsonify(**medium.api_fields(include_raw_mediainfo=True))
 
 
 @v1.route("/media/<file_hash>/vote", methods=["POST", "DELETE"])
@@ -134,7 +134,7 @@ def media_vote(file_hash):
         medium.score -= 1
     db.session.add(medium)
     db.session.commit()
-    return jsonify(**medium.api_fields(include_raw_mediainfo=true))
+    return jsonify(**medium.api_fields(include_raw_mediainfo=True))
 
 
 @v1.route("/media/<file_hash>/tag/<tag_name>", methods=["POST", "DELETE"])
