@@ -122,6 +122,19 @@ def media_view(file_hash, tag_name):
     medium.views += 1
     db.session.add(medium)
     db.session.commit()
+    return jsonify(**medium.api_fields(include_raw_mediainfo=true))
+
+
+@v1.route("/media/<file_hash>/vote", methods=["post", "delete"])
+def media_view(file_hash, tag_name):
+    medium = media.query.filter_by(file_hash=file_hash).first_or_404()
+    if request.method == "post":
+        medium.score += 1
+    elif request.method == "delete":
+        medium.score -= 1
+    db.session.add(medium)
+    db.session.commit()
+    return jsonify(**medium.api_fields(include_raw_mediainfo=true))
 
 
 @v1.route("/media/<file_hash>/tag/<tag_name>", methods=["post", "delete"])

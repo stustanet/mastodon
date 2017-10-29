@@ -142,6 +142,7 @@ class Media(db.Model):
     mimetype = db.Column(db.Text, nullable=False)
     files = db.relationship('File', backref='files', lazy='joined')
     views = db.Column(db.Integer, default=0)
+    score = db.Column(db.Integer, default=0)
     Category_id = Column(db.Integer,
                          ForeignKey("category.category_id"),
                          nullable=False)
