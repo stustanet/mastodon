@@ -118,7 +118,7 @@ def media(file_hash):
 
 @v1.route("/media/<file_hash>/view", methods=["POST"])
 def media_view(file_hash, tag_name):
-    medium = media.query.filter_by(file_hash=file_hash).first_or_404()
+    medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
     medium.views += 1
     db.session.add(medium)
     db.session.commit()
@@ -127,7 +127,7 @@ def media_view(file_hash, tag_name):
 
 @v1.route("/media/<file_hash>/vote", methods=["POST", "DELETE"])
 def media_view(file_hash, tag_name):
-    medium = media.query.filter_by(file_hash=file_hash).first_or_404()
+    medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
     if request.method == "POST":
         medium.score += 1
     elif request.method == "DELETE":
@@ -138,23 +138,23 @@ def media_view(file_hash, tag_name):
 
 
 @v1.route("/media/<file_hash>/tag/<tag_name>", methods=["POST", "DELETE"])
-def mediatag(file_hash, tag_name):
-    mediatag = mediatag.query.filter_by(file_hash=file_hash, tag_name=tag_name).first()
+def media_tag(file_hash, tag_name):
+    mediatag = Mediatag.query.filter_by(file_hash=file_hash, tag_name=tag_name).first()
     if request.method == "POST":
-        if mediatag is not none:
+        if mediatag is not None:
             mediatag.score += 1
             db.session.add(mediatag)
             db.session.commit()
         else:
-            medium = media.query.filter_by(file_hash=file_hash).first_or_404()
-            mediatag = mediatag(file_hash=file_hash)
+            medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
+            mediatag = Mediatag(file_hash=file_hash)
             mediatag.tag = get_or_create_tag(tag_name)
             medium.tags.append(mediatag)
             db.session.add(mediatag)
             db.session.add(medium)
             db.session.commit()
     elif request.method == "DELETE":
-        if mediatag is not none:
+        if mediatag is not None:
             mediatag.score -= 1
             db.session.add(mediatag)
             db.session.commit()
