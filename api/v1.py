@@ -126,7 +126,7 @@ def media_view(file_hash, tag_name):
 
 
 @v1.route("/media/<file_hash>/vote", methods=["POST", "DELETE"])
-def media_view(file_hash, tag_name):
+def media_vote(file_hash, tag_name):
     medium = Media.query.filter_by(file_hash=file_hash).first_or_404()
     if request.method == "POST":
         medium.score += 1
